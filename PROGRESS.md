@@ -26,9 +26,26 @@
   - Decisions / Notes: Set up pure JS dependencies (`commander`, `@clack/prompts`, `picocolors`, `zod`, `execa`, `@modelcontextprotocol/sdk`). Zero native binary addons.
   - Blockers: None.
 
-- [ ] **Phase 1 — Core + UI Kit**
-  - Status: Pending
-  - Acceptance Checks: Banner renders at 50 and 100 columns; `NO_COLOR=1` and piped output clean; `doctor` prints table; config round-trip test passes.
+- [x] **Phase 1 — Core + UI Kit**
+  - Status: Completed
+  - Tasks:
+    - [x] `src/core/paths.js` with `OPEN_SPIDER_HOME` override and data dir creation
+    - [x] `src/core/config.js` with nested key access and defaults
+    - [x] `src/core/secrets.js` with 0600 file modes, masking (`sk-…abcd`), and env fallbacks
+    - [x] `src/core/logger.js` with structured prefixes (`[ OK ]`, `[WARN]`, `[FAIL]`, `[INFO]`, `[FAILOVER]`, `[TASK t1]`) and file stream
+    - [x] `src/core/errors.js` with domain error classes and user hints without stack traces
+    - [x] `src/core/run-state.js` with run initialization, status tracking, and history listing
+    - [x] `src/ui/theme.js` central hacker color palette (matrix green, cyan highlights, amber warnings, red errors)
+    - [x] `src/ui/banner.js` responsive ASCII spider banner adapting to narrow (<60 cols) mobile/Termux screens
+    - [x] `src/ui/box.js` responsive border panel renderer
+    - [x] `src/ui/table.js` column-aligned table renderer with width truncation
+    - [x] `src/ui/spinner.js` terminal spinner with non-TTY static degradation
+    - [x] `src/ui/prompts.js` Clack prompt wrappers with graceful cancellation
+    - [x] `src/cli/help.js` custom grouped, example-rich help screens
+    - [x] `src/cli/doctor.js` diagnostics for Node, Platform/Termux, Git, storage, and 0600 secrets
+  - Acceptance Checks: Banner renders at 50 and 100 columns; `NO_COLOR=1` and piped output clean; `doctor` prints table and `--json`; config & secrets round-trip tests pass (13/13 tests green).
+  - Decisions / Notes: All files under 250 lines. Strict adherence to pure JS.
+  - Blockers: None.
 
 - [ ] **Phase 2 — Providers & Models**
   - Status: Pending

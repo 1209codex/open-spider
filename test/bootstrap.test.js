@@ -33,7 +33,7 @@ test('Phase 0: Bootstrap & Project Structure', async (t) => {
 
   await t.test('CLI executable responds to help command', async () => {
     const { stdout } = await execFileAsync('node', ['bin/open-spider.js', 'help']);
-    assert.match(stdout, /Usage: open-spider|Usage: spider/i);
+    assert.match(stdout, /OPEN-SPIDER/i);
     assert.match(stdout, /run/i);
     assert.match(stdout, /doctor/i);
     assert.match(stdout, /setup/i);
