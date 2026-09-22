@@ -6,7 +6,9 @@
 import { execSync } from 'node:child_process';
 import { existsSync, accessSync, constants } from 'node:fs';
 import { getDataDir, getSecretsFile, ensureDataDirs } from '../core/paths.js';
-import { checkSecretsPermissions } from '../core/secrets.js';
+import { checkSecretsPermissions, getSecret } from '../core/secrets.js';
+import { getConfigValue } from '../core/config.js';
+import { getAllProviders } from '../providers/providers-store.js';
 import { renderTable } from '../ui/table.js';
 import { theme } from '../ui/theme.js';
 
@@ -116,6 +118,33 @@ export async function runDoctor(options = {}) {
       details: 'Will be created with 0600 on save',
       hint: ''
     });
+  }
+
+  // 6. Manager LLM Provider & Key Check
+  const mgrProviderId = getConfigValue('manager.provider') || 'openrouter';
+  const mgrModel = getConfigValue('manager.model') || 'google/gemini-2.5-flash';
+  const providers = getAllProviders();
+  const providerDef = providers.find((p) => p.id === mgrProviderId);
+
+  if (providerDef) {
+    const key = getSecret(mgrProviderId, providerDef.envKey);
+    if (key || mgrProviderId === 'ollama') {
+      checks.push({
+        status: 'OK',
+        category: 'Manager LLM',
+        name: `${mgrProviderId} (${mgrModel})`,
+        details: key ? 'API key configured' : 'Local endpoint',
+        hint: ''
+      });
+    } else {
+      checks.push({
+        status: 'WARN',
+        category: 'Manager LLM',
+        name: `${mgrProviderId} (${mgrModel})`,
+        details: 'No API key set',
+        hint: `Run: open-spider providers add (or set ${providerDef.envKey || 'API key'})`
+      });
+    }
   }
 
   if (options.json) {

@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { displayHelp } from '../src/cli/help.js';
 import { runDoctor } from '../src/cli/doctor.js';
+import { handleProvidersCommand } from '../src/cli/providers.js';
+import { handleModelsCommand } from '../src/cli/models.js';
 import { renderBanner } from '../src/ui/banner.js';
 import { logger } from '../src/core/logger.js';
 import { formatError } from '../src/core/errors.js';
@@ -91,10 +93,15 @@ program
   });
 
 program
-  .command('providers [action]')
+  .command('providers [action] [arg1] [arg2]')
   .description('Manage LLM API providers (list | add | remove | test | use)')
-  .action((action) => {
-    logger.info(`Providers command: ${action || 'list'}`);
+  .action(async (action, arg1, arg2) => {
+    try {
+      await handleProvidersCommand(action, arg1, arg2);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
@@ -104,8 +111,13 @@ program
   .option('--free', 'Show free models only')
   .option('--paid', 'Show paid models only')
   .option('--refresh', 'Force refresh model cache from remote APIs')
-  .action(() => {
-    logger.info('Models listing invoked.');
+  .action(async (options) => {
+    try {
+      await handleModelsCommand(options);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
