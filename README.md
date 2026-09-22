@@ -42,6 +42,28 @@ open-spider run "Write a README"  # Example one‑shot task
 | `open-spider providers list` | Show configured LLM providers. |
 | `open-spider doctor` | Run health checks (add `--deep` for exhaustive probing). |
 | `open-spider setup` | Interactive setup wizard (add `--quick` for fast mode). |
+## Extended Commands
+
+### MCP (Managed Compute Providers)
+
+- `open-spider mcp add <url>` – register a new MCP server.
+- `open-spider mcp list` – list configured MCP servers.
+- `open-spider mcp tools <id>` – list available tools on a server.
+- `open-spider mcp remove <id>` – delete a server.
+
+MCP tasks can be invoked using the `mcp:` prefix, e.g.:
+
+```bash
+open-spider run "Fetch example.com" --worker=mcp:fetch_generic_url_content
+```
+
+### Plugins
+
+- `open-spider plugins list` – show installed plugins.
+- `open-spider plugins install <npm-spec>` – install a plugin.
+- `open-spider plugins remove <name>` – uninstall a plugin.
+
+Plugins are loaded from `~/.open-spider/plugins` and can extend the CLI with new commands.
 
 ## Configuration
 

@@ -37,7 +37,7 @@
   - Status: Pending
   - Acceptance Checks: Fake worker modes classified; `agents list` reports honest status; timeout kills child tree; CLI flags verified via `--help`.
 
-- [ ] **Phase 4 — Manager Brain**
+- [x] **Phase 4 — Manager Brain** (Done)
   - Status: Pending
   - Acceptance Checks: Multi-task DAG execution; `[FAILOVER]` triggers on quota; manual pinning works; `--dry-run` plans only; logs saved to `runs/<id>/`.
 

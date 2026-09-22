@@ -15,8 +15,8 @@ import { handleProvidersCommand } from '../src/cli/providers.js';
 import { handleModelsCommand } from '../src/cli/models.js';
 import { renderBanner } from '../src/ui/banner.js';
 import { logger } from '../src/core/logger.js';
-import { formatError } from '../src/core/errors.js';
-
+import { formatError } from '../src/core/errors.js'; import { handleSetupWizard } from '../src/cli/setup.js';
+import { handleRunCommand } from "../src/cli/run.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -60,7 +60,12 @@ program
   .option('--json', 'Output results formatted as JSON')
   .option('--cwd <dir>', 'Working directory for task execution')
   .action(async (task, options) => {
-    logger.info(`Run command received for task: "${task || ''}"`);
+    try {
+      await handleRunCommand(task, options);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
@@ -82,6 +87,12 @@ program
   .description('Run step-by-step or quick setup wizard')
   .option('-q, --quick', 'Run fast setup wizard in under 60 seconds')
   .action(async (options) => {
+    try {
+      await handleSetupWizard(options);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
     logger.info('Setup wizard invocation...');
   });
 
@@ -121,17 +132,29 @@ program
   });
 
 program
-  .command('mcp [action]')
+  .command('mcp <action> [args...]')
   .description('Manage MCP servers and tools (add | add-git | list | remove | test | tools)')
-  .action((action) => {
-    logger.info(`MCP command: ${action || 'list'}`);
+  .action(async (action = 'list', ...args) => {
+    try {
+      const { handleMcpCommand } = await import('../src/cli/cli-mcp.js');
+      await handleMcpCommand(action, ...args);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
   .command('plugins [action]')
   .description('Manage Open-spider plugins (list | install | remove | enable | disable)')
-  .action((action) => {
-    logger.info(`Plugins command: ${action || 'list'}`);
+  .action(async (action = 'list', ...args) => {
+    try {
+      const { handlePluginsCommand } = await import('../src/cli/cli-plugins.js');
+      await handlePluginsCommand(action, ...args);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
