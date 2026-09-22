@@ -1,0 +1,7 @@
+node_modules/
+.open-spider/
+cache/
+runs/
+*.log
+.env
+.DS_Store
