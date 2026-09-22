@@ -33,7 +33,7 @@
   - Decisions / Notes: Kept all files < 250 lines. Strict Free-First enforcement in all output layers.
   - Blockers: None.
 
-- [ ] **Phase 3 — Worker Adapters**
+- [x] **Phase 3 — Worker Adapters** (Done)
   - Status: Pending
   - Acceptance Checks: Fake worker modes classified; `agents list` reports honest status; timeout kills child tree; CLI flags verified via `--help`.
 
