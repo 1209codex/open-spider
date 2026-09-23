@@ -2,10 +2,12 @@
 /**
  * Open-Spider Web UI Client
  * Handles SPA navigation, real-time worker fleet tracking, model selection,
- * task dispatch, runs history, and ecosystem views.
+ * free/paid model tagging, task dispatch, and settings management.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  let cachedModels = [];
+
   // Navigation Tabs
   const navBtns = document.querySelectorAll('.nav-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
@@ -74,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
     summaryReport.innerHTML = '<div class="placeholder-text">Waiting for worker execution and synthesis...</div>';
     logStream.textContent = 'Starting multi-agent manager run...\n';
 
-    // Poll live worker status during execution
     const livePoll = setInterval(() => {
       loadMiniWorkers();
     }, 2000);
@@ -160,6 +161,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
   }
 
+  // Fetch all models for catalog & dropdowns
+  async function fetchModels() {
+    try {
+      const res = await fetch('/api/models');
+      if (res.ok) {
+        const data = await res.json();
+        cachedModels = data.models || [];
+      }
+    } catch {}
+  }
+
   // Mini Workers overview on Dashboard
   async function loadMiniWorkers() {
     const grid = document.getElementById('miniWorkersGrid');
@@ -178,13 +190,18 @@ document.addEventListener('DOMContentLoaded', () => {
       grid.innerHTML = workers.map((w) => {
         let statusClass = w.status === 'working' ? 'working' : (w.status === 'disabled' ? 'disabled' : (w.status === 'limited' ? 'limited' : 'idle'));
         let statusLabel = w.status === 'working' ? '● Working' : (w.status === 'disabled' ? 'Disabled' : (w.status === 'limited' ? 'Limited' : '● Free / Idle'));
+        const tierTag = w.modelTier === 'FREE' ? `<span class="tag-free">[FREE]</span>` : (w.modelTier === 'PAID' ? `<span class="tag-paid">[PAID]</span>` : '');
+
         return `
           <div class="mini-worker-card">
             <div class="mini-worker-head">
               <strong>${escapeHtml(w.name || w.id)}</strong>
               <span class="status-pill ${statusClass}">${statusLabel}</span>
             </div>
-            <div class="mini-worker-model">Model: ${escapeHtml(w.model || 'default')}</div>
+            <div class="mini-worker-model-row">
+              <span class="mini-worker-model">${escapeHtml(w.model || 'default')}</span>
+              ${tierTag}
+            </div>
             ${w.currentTask ? `<div class="mini-worker-task">Task: ${escapeHtml(w.currentTask.taskTitle)}</div>` : `<div class="mini-worker-task">${escapeHtml(w.role || 'Ready')}</div>`}
           </div>
         `;
@@ -206,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
       container.innerHTML = workers.map((w) => {
         let statusClass = w.status === 'working' ? 'working' : (w.status === 'disabled' ? 'disabled' : (w.status === 'limited' ? 'limited' : 'idle'));
         let statusLabel = w.status === 'working' ? '● BUSY (WORKING)' : (w.status === 'disabled' ? 'DISABLED' : (w.status === 'limited' ? 'LIMITED (COOLDOWN)' : '● FREE (IDLE)'));
+        const tierTag = w.modelTier === 'FREE' ? `<span class="tag-free">[FREE]</span>` : (w.modelTier === 'PAID' ? `<span class="tag-paid">[PAID]</span>` : '');
 
         return `
           <div class="fleet-card">
@@ -227,7 +245,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <div class="fleet-meta-row">
               <span>Active Model:</span>
-              <span class="code-pill">${escapeHtml(w.model || 'default')}</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="code-pill">${escapeHtml(w.model || 'default')}</span>
+                ${tierTag}
+              </div>
             </div>
 
             <div class="fleet-meta-row">
@@ -248,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadSettings() {
     const workerList = document.getElementById('workerSettingsList');
     try {
+      await fetchModels();
       const [settingsRes, workersRes] = await Promise.all([
         fetch('/api/settings'),
         fetch('/api/workers')
@@ -269,12 +291,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (concurrencyInput) concurrencyInput.value = config.routing?.concurrency || 2;
       if (failoverSelect) failoverSelect.value = config.routing?.failover || 'auto';
 
-      // Populate Worker Models & Toggles
+      // Build model options (Free First, then Paid)
+      const freeModels = cachedModels.filter((m) => m.free);
+      const paidModels = cachedModels.filter((m) => !m.free);
+
+      // Populate Worker Models Selectors & Toggles
       if (workerList) {
         workerList.innerHTML = workers.map((w) => {
           const cfgWorker = config.workers?.[w.id] || {};
           const currentModel = cfgWorker.model || w.model || '';
           const isEnabled = cfgWorker.enabled !== false;
+
+          const isKnownOption = cachedModels.some((m) => m.id === currentModel);
 
           return `
             <div class="settings-worker-row" data-worker-id="${escapeHtml(w.id)}">
@@ -282,8 +310,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 <strong>${escapeHtml(w.name)}</strong>
                 <span>${escapeHtml(w.role)}</span>
               </div>
-              <div>
-                <input type="text" class="worker-model-input" value="${escapeHtml(currentModel)}" placeholder="e.g. ${escapeHtml(w.recommendedModels?.[0] || 'model-id')}" />
+              <div class="settings-model-picker">
+                <select class="worker-model-select model-select-element">
+                  <optgroup label="--- 🟢 FREE TIER MODELS ---">
+                    ${freeModels.map((m) => `<option value="${escapeHtml(m.id)}" ${m.id === currentModel ? 'selected' : ''}>[FREE] ${escapeHtml(m.name || m.id)} (${escapeHtml(m.provider)})</option>`).join('')}
+                  </optgroup>
+                  <optgroup label="--- 🟣 PAID TIER MODELS ---">
+                    ${paidModels.map((m) => `<option value="${escapeHtml(m.id)}" ${m.id === currentModel ? 'selected' : ''}>[PAID] ${escapeHtml(m.name || m.id)} (${escapeHtml(m.provider)})</option>`).join('')}
+                  </optgroup>
+                  <option value="__custom__" ${!isKnownOption && currentModel ? 'selected' : ''}>✏️ Custom Model Identifier...</option>
+                </select>
+                <input type="text" class="worker-model-input model-custom-input ${isKnownOption || !currentModel ? 'hidden' : ''}" value="${escapeHtml(currentModel)}" placeholder="Enter custom model ID (e.g. gpt-4o)" />
               </div>
               <div>
                 <label class="settings-toggle">
@@ -294,10 +331,50 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
           `;
         }).join('');
+
+        // Wire change listeners on selects
+        document.querySelectorAll('.worker-model-select').forEach((sel) => {
+          sel.addEventListener('change', (e) => {
+            const row = e.target.closest('.settings-worker-row');
+            const customInput = row.querySelector('.worker-model-input');
+            if (e.target.value === '__custom__') {
+              customInput.classList.remove('hidden');
+              customInput.focus();
+            } else {
+              customInput.classList.add('hidden');
+              customInput.value = e.target.value;
+            }
+          });
+        });
       }
+
+      // Populate Master Models Catalog Table
+      renderModelsCatalog();
     } catch (err) {
       if (workerList) workerList.innerHTML = `<div class="placeholder-text">Failed to load settings: ${escapeHtml(err.message)}</div>`;
     }
+  }
+
+  function renderModelsCatalog() {
+    const statsElem = document.getElementById('catalogStats');
+    const tbody = document.getElementById('modelsCatalogBody');
+    if (!tbody) return;
+
+    const freeCount = cachedModels.filter((m) => m.free).length;
+    const paidCount = cachedModels.filter((m) => !m.free).length;
+    if (statsElem) {
+      statsElem.textContent = `${freeCount} Free Models • ${paidCount} Paid Models`;
+      statsElem.className = 'badge matrix';
+    }
+
+    tbody.innerHTML = cachedModels.map((m) => `
+      <tr>
+        <td><span class="code-pill">${escapeHtml(m.id)}</span></td>
+        <td>${escapeHtml(m.name)}</td>
+        <td>${escapeHtml(m.providerName || m.provider)}</td>
+        <td>${m.free ? '<span class="tag-free">[FREE]</span>' : '<span class="tag-paid">[PAID]</span>'}</td>
+      </tr>
+    `).join('');
   }
 
   // Save Settings
@@ -310,11 +387,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       workerRows.forEach((row) => {
         const workerId = row.getAttribute('data-worker-id');
+        const modelSelect = row.querySelector('.worker-model-select');
         const modelInput = row.querySelector('.worker-model-input');
         const checkInput = row.querySelector('.worker-enable-check');
         if (workerId) {
+          let selectedModel = modelSelect ? modelSelect.value : '';
+          if (selectedModel === '__custom__' && modelInput) {
+            selectedModel = modelInput.value.trim();
+          }
           workersConfig[workerId] = {
-            model: modelInput ? modelInput.value.trim() : '',
+            model: selectedModel,
             enabled: checkInput ? checkInput.checked : true
           };
         }
@@ -483,6 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
       grid.innerHTML = workers.map((w) => {
         const info = workerHealth[w.id] || { status: 'healthy', lastChecked: null };
         const statusClass = `status-${info.status || 'healthy'}`;
+        const tierTag = w.modelTier === 'FREE' ? `[FREE]` : (w.modelTier === 'PAID' ? `[PAID]` : '');
         return `
           <div class="health-card">
             <div class="health-card-header">
@@ -490,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="health-status-dot ${statusClass}"></div>
             </div>
             <div class="subtitle" style="font-size: 0.8rem;">Health: ${escapeHtml(info.status || 'healthy')}</div>
-            <div class="subtitle" style="font-size: 0.8rem;">Model: ${escapeHtml(w.model || 'default')}</div>
+            <div class="subtitle" style="font-size: 0.8rem;">Model: ${escapeHtml(w.model || 'default')} ${tierTag}</div>
             ${info.lastError ? `<div style="font-size: 0.75rem; color: var(--accent-fail); margin-top: 0.25rem;">Last error: ${escapeHtml(info.lastError)}</div>` : ''}
           </div>
         `;

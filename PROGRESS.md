@@ -52,11 +52,18 @@
 
 - [x] **Phase 10 — Worktree Isolation & Post-Run Verification**
   - Status: Completed
+  - Acceptance Checks: Git worktree branches (`spider/<runId>/<taskId>`), sequential merges, `--verify "<cmd>"`. `npm test` 42/42 green.
+
+- [x] **Phase 11 — Comprehensive Model Catalog & [FREE] / [PAID] Selection**
+  - Status: Completed
   - Tasks:
-    - [x] `src/core/worktree.js` git repository detection, branch isolation (`spider/<runId>/<taskId>`), sequential merging, and worktree cleanup.
-    - [x] `src/cli/run.js` added `--verify "<cmd>"` execution and synthesized verification status report.
-    - [x] `test/worktree-verify.test.js` verified git repository detection and verification command execution.
-  - Acceptance Checks: `npm test` 42/42 green; all files < 250 lines; pure ESM.
+    - [x] `src/data/agent-profiles.js` enriched recommended models with free/paid indicators.
+    - [x] `src/providers/model-list.js` added `getAllCuratedModels()` and `getModelTier()` with strict Free-First ordering.
+    - [x] `src/webapp/server.js` added `GET /api/models` endpoint and worker tier badges.
+    - [x] `src/webapp/public/index.html`, `style.css`, `app.js` implemented grouped model dropdown selectors, custom model inputs, neon `[FREE]` / `[PAID]` badges, and Master Models Catalog Explorer.
+    - [x] `src/cli/agents.js` added tier labels to `open-spider agents list` and `open-spider agents model <worker>`.
+    - [x] `test/models-catalog.test.js` verified catalog aggregation, free-first ordering, and tier classification.
+  - Acceptance Checks: `npm test` 46/46 green; all files < 250 lines; pure ESM.
 
 ---
 

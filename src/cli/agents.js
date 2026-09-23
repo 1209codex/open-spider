@@ -5,7 +5,7 @@
  * Commands:
  *   open-spider agents list                  – Detect available workers, models, and live status.
  *   open-spider agents connect               – Run detect on all adapters and record health.
- *   open-spider agents model <worker> <model>– Set default model for a specific worker.
+ *   open-spider agents model <worker> [model]– Set default model for a specific worker.
  *   open-spider agents test <worker>         – Run a test probe through the adapter.
  *   open-spider agents enable <worker>        – Mark worker as enabled and healthy.
  *   open-spider agents disable <worker>       – Mark worker as disabled.
@@ -14,6 +14,7 @@
 import { logger } from "../core/logger.js";
 import { getWorkersStatus, recordSuccess, recordFailure } from "../agents/health.js";
 import { loadConfig, setConfigValue } from "../core/config.js";
+import { AGENT_PROFILES } from "../data/agent-profiles.js";
 import { CodexAdapter } from "../agents/codex.js";
 import { OpencodeAdapter } from "../agents/opencode.js";
 import { HermesAdapter } from "../agents/hermes.js";
@@ -49,7 +50,7 @@ export async function handleAgentsCommand(action = 'list', target = null, extra 
     case 'list': {
       const detection = await detectAll();
       const workers = await getWorkersStatus(detection);
-      const headers = ['Worker Agent', 'Role', 'Status', 'Model', 'Detected'];
+      const headers = ['Worker Agent', 'Role', 'Status', 'Model & Tier', 'Detected'];
       const rows = [];
       for (const w of workers) {
         let statusDisplay = theme.okText('idle (free)');
@@ -63,11 +64,14 @@ export async function handleAgentsCommand(action = 'list', target = null, extra 
           statusDisplay = theme.warnText(w.status);
         }
 
+        const tierBadge = w.modelTier === 'FREE' ? theme.okText('[FREE]') : (w.modelTier === 'PAID' ? theme.warnText('[PAID]') : '');
+        const modelStr = `${w.model ? theme.highlight(w.model) : theme.dim('default')} ${tierBadge}`.trim();
+
         rows.push([
           theme.cyan(w.id),
           theme.dim(w.role || 'Agent'),
           statusDisplay,
-          w.model ? theme.highlight(w.model) : theme.dim('default'),
+          modelStr,
           w.detected ? theme.okText(`yes (${w.version})`) : theme.dim('no')
         ]);
       }
@@ -78,12 +82,25 @@ export async function handleAgentsCommand(action = 'list', target = null, extra 
     }
 
     case 'model': {
-      if (!target || !extra) {
-        logger.error('Usage: open-spider agents model <worker> <modelId>');
+      if (!target) {
+        logger.error('Usage: open-spider agents model <worker> [modelId]');
         return;
       }
       if (!adapters[target]) {
         logger.fail(`Unknown worker "${target}". Available: ${Object.keys(adapters).join(', ')}`);
+        return;
+      }
+      if (!extra) {
+        // List recommended models for this worker
+        const profile = AGENT_PROFILES[target];
+        console.log(theme.matrix(`\n=== RECOMMENDED MODELS FOR ${target.toUpperCase()} ===\n`));
+        if (profile?.recommendedModels?.length) {
+          profile.recommendedModels.forEach((m) => {
+            const tierStr = m.free ? theme.okText('[FREE]') : theme.warnText('[PAID]');
+            console.log(`  - ${theme.highlight(m.id)} ${tierStr} (${m.name || m.id})`);
+          });
+        }
+        console.log(theme.dim(`\nRun: open-spider agents model ${target} <modelId>\n`));
         return;
       }
       setConfigValue(`workers.${target}.model`, extra);

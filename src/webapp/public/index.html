@@ -71,7 +71,7 @@
         <!-- Live Worker Activity Banner -->
         <div class="card glass-card worker-overview-card">
           <div class="card-header">
-            <h3>🏢 Active Agent Fleet</h3>
+            <h3>🏢 Active Agent Fleet & Models</h3>
             <button id="refreshWorkersMiniBtn" class="btn small-btn">🔄 Refresh</button>
           </div>
           <div id="miniWorkersGrid" class="mini-workers-grid">
@@ -161,7 +161,7 @@
         <header class="content-header">
           <div>
             <h1>Agent Team & Live Status</h1>
-            <p class="subtitle">Real-time inspection of active workers, assigned models, and idle status.</p>
+            <p class="subtitle">Real-time inspection of active workers, assigned models, free/paid status, and tasks.</p>
           </div>
           <button id="refreshFleetBtn" class="btn secondary-btn">🔄 Refresh Fleet</button>
         </header>
@@ -176,7 +176,7 @@
         <header class="content-header">
           <div>
             <h1>Settings & Worker Models</h1>
-            <p class="subtitle">Configure AI models for each agent employee, manager LLM, and execution concurrency.</p>
+            <p class="subtitle">Select AI models for each employee agent with [FREE] & [PAID] indicators.</p>
           </div>
           <button id="saveSettingsBtn" class="btn primary-btn">💾 Save Settings</button>
         </header>
@@ -185,10 +185,10 @@
           <!-- Worker Models Card -->
           <div class="card glass-card">
             <div class="card-header">
-              <h3>🤖 Per-Worker Model Configuration</h3>
-              <span class="badge matrix">Customizable</span>
+              <h3>🤖 Per-Worker Model Selection (Free & Paid)</h3>
+              <span class="badge matrix">Free First Priority</span>
             </div>
-            <p class="subtitle" style="margin-bottom: 1rem;">Choose which model each employee agent uses for their tasks.</p>
+            <p class="subtitle" style="margin-bottom: 1.25rem;">Select from the curated free/paid models or type any custom model identifier.</p>
             <div id="workerSettingsList" class="settings-worker-list">
               <div class="placeholder-text">Loading worker settings...</div>
             </div>
@@ -226,6 +226,29 @@
                   <option value="off">Off</option>
                 </select>
               </div>
+            </div>
+          </div>
+
+          <!-- All Models Catalog Explorer -->
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3>📚 Master Models Catalog</h3>
+              <div id="catalogStats" class="badge"></div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="modelsCatalogTable">
+                <thead>
+                  <tr>
+                    <th>Model ID</th>
+                    <th>Name</th>
+                    <th>Provider</th>
+                    <th>Tier</th>
+                  </tr>
+                </thead>
+                <tbody id="modelsCatalogBody">
+                  <tr><td colspan="4" class="text-center">Loading model catalog...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </form>

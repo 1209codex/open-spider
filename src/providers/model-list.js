@@ -1,19 +1,16 @@
+// src/providers/model-list.js
 /**
- * @file src/providers/model-list.js
  * Model discovery, 24-hour file caching, and Free-First classification.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { getModelsCacheFile, ensureDataDirs } from '../core/paths.js';
 import { PROVIDERS_CATALOG, findProvider } from '../data/providers.catalog.js';
+import { AGENT_PROFILES } from '../data/agent-profiles.js';
 import { getSecret } from '../core/secrets.js';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-/**
- * Loads cache from disk.
- * @returns {Record<string, { timestamp: number, models: Array<{id: string, name: string, free: boolean}> }>}
- */
 function loadCache() {
   ensureDataDirs();
   const file = getModelsCacheFile();
@@ -25,10 +22,6 @@ function loadCache() {
   }
 }
 
-/**
- * Saves cache to disk.
- * @param {object} cache
- */
 function saveCache(cache) {
   ensureDataDirs();
   const file = getModelsCacheFile();
@@ -39,14 +32,8 @@ function saveCache(cache) {
   }
 }
 
-/**
- * Classifies whether a model is free based on ID or provider metadata.
- * @param {string} modelId
- * @param {object} [rawModel={}]
- * @param {object} [providerDef]
- * @returns {boolean}
- */
 export function isModelFree(modelId, rawModel = {}, providerDef = null) {
+  if (!modelId) return false;
   if (modelId.endsWith(':free')) return true;
   if (rawModel.pricing && (rawModel.pricing.prompt === 0 || rawModel.pricing.prompt === '0')) return true;
   if (providerDef && providerDef.curatedModels) {
@@ -57,14 +44,71 @@ export function isModelFree(modelId, rawModel = {}, providerDef = null) {
   return false;
 }
 
-/**
- * Lists models for a given provider, with 24h cache and Free-First ordering.
- * @param {string} providerId
- * @param {object} [opts]
- * @param {boolean} [opts.refresh=false]
- * @param {Array} [opts.customProviders=[]]
- * @returns {Promise<{ models: Array<{id: string, name: string, free: boolean}>, source: 'live'|'cache'|'curated' }>}
- */
+export function getModelTier(modelId) {
+  if (!modelId) return 'DEFAULT';
+  if (isModelFree(modelId)) return 'FREE';
+  for (const prov of PROVIDERS_CATALOG) {
+    if (prov.curatedModels) {
+      const found = prov.curatedModels.find((m) => m.id === modelId);
+      if (found) return found.free ? 'FREE' : 'PAID';
+    }
+  }
+  for (const agent of Object.values(AGENT_PROFILES)) {
+    const found = agent.recommendedModels?.find((m) => m.id === modelId);
+    if (found) return found.free ? 'FREE' : 'PAID';
+  }
+  return 'PAID';
+}
+
+export function getAllCuratedModels() {
+  const modelMap = new Map();
+
+  // 1. Gather from Providers Catalog
+  for (const prov of PROVIDERS_CATALOG) {
+    if (prov.curatedModels) {
+      for (const m of prov.curatedModels) {
+        modelMap.set(m.id, {
+          id: m.id,
+          name: m.name || m.id,
+          provider: prov.id,
+          providerName: prov.name,
+          free: Boolean(m.free),
+          tier: m.free ? 'FREE' : 'PAID'
+        });
+      }
+    }
+  }
+
+  // 2. Gather from Agent Profiles
+  for (const profile of Object.values(AGENT_PROFILES)) {
+    if (profile.recommendedModels) {
+      for (const m of profile.recommendedModels) {
+        if (!modelMap.has(m.id)) {
+          modelMap.set(m.id, {
+            id: m.id,
+            name: m.name || m.id,
+            provider: m.provider || 'unknown',
+            providerName: m.provider || 'AI Provider',
+            free: Boolean(m.free),
+            tier: m.free ? 'FREE' : 'PAID'
+          });
+        }
+      }
+    }
+  }
+
+  const allModels = Array.from(modelMap.values());
+
+  // Strict Free First sorting
+  allModels.sort((a, b) => {
+    if (a.free && !b.free) return -1;
+    if (!a.free && b.free) return 1;
+    return a.id.localeCompare(b.id);
+  });
+
+  return allModels;
+}
+
 export async function listModelsForProvider(providerId, opts = {}) {
   const provider = findProvider(providerId, opts.customProviders);
   if (!provider) {
@@ -96,10 +140,9 @@ export async function listModelsForProvider(providerId, opts = {}) {
         const id = typeof m === 'string' ? m : m.id;
         const name = m.name || id;
         const free = isModelFree(id, m, provider);
-        return { id, name, free };
+        return { id, name, free, tier: free ? 'FREE' : 'PAID' };
       });
 
-      // Strict Free First ordering
       models.sort((a, b) => {
         if (a.free && !b.free) return -1;
         if (!a.free && b.free) return 1;
@@ -114,7 +157,10 @@ export async function listModelsForProvider(providerId, opts = {}) {
     // Fall back to curated list
   }
 
-  const curated = (provider.curatedModels || []).map((m) => ({ ...m }));
+  const curated = (provider.curatedModels || []).map((m) => ({
+    ...m,
+    tier: m.free ? 'FREE' : 'PAID'
+  }));
   curated.sort((a, b) => {
     if (a.free && !b.free) return -1;
     if (!a.free && b.free) return 1;

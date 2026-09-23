@@ -8,6 +8,7 @@
  *   GET  /api/runs/:id – get details of a specific run
  *   GET  /api/logs/:id – stream run.log file for a run
  *   GET  /api/workers  – list company employee agents, live status, models
+ *   GET  /api/models   – list curated models with [FREE]/[PAID] categorization
  *   GET  /api/settings – retrieve manager, routing & worker settings
  *   POST /api/settings – update manager, routing & worker settings
  *   GET  /api/mcp      – list configured MCP servers
@@ -27,6 +28,7 @@ import { listMcpServers } from '../mcp/mcp-manager.js';
 import { listPlugins } from '../plugins/plugin-manager.js';
 import { getHealthReport, getWorkersStatus } from '../agents/health.js';
 import { loadConfig, saveConfig } from '../core/config.js';
+import { getAllCuratedModels } from '../providers/model-list.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -88,6 +90,20 @@ export async function startServer(port = process.env.PORT || 3000) {
       if (req.method === 'GET' && pathname === '/api/workers') {
         const workers = await getWorkersStatus();
         return sendJson(200, { workers });
+      }
+
+      // API: GET /api/models
+      if (req.method === 'GET' && (pathname === '/api/models' || pathname === '/models')) {
+        const models = getAllCuratedModels();
+        const free = models.filter((m) => m.free);
+        const paid = models.filter((m) => !m.free);
+        return sendJson(200, {
+          total: models.length,
+          freeCount: free.length,
+          paidCount: paid.length,
+          models,
+          categorized: { free, paid }
+        });
       }
 
       // API: GET /api/settings

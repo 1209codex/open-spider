@@ -8,6 +8,7 @@ import { getDataDir } from "../core/paths.js";
 import { join } from "node:path";
 import { AGENT_PROFILES } from "../data/agent-profiles.js";
 import { loadConfig } from "../core/config.js";
+import { getModelTier } from "../providers/model-list.js";
 
 const healthFile = () => join(getDataDir(), "cache", "health.json");
 
@@ -118,6 +119,7 @@ export async function getWorkersStatus(detection = {}) {
     const workerConfig = configWorkers[id] || {};
     const enabled = workerConfig.enabled !== false;
     const model = workerConfig.model || profile.defaultModel || "";
+    const modelTier = getModelTier(model);
 
     let liveStatus = "idle";
     if (!enabled) {
@@ -144,6 +146,7 @@ export async function getWorkersStatus(detection = {}) {
       healthStatus: healthRec.status,
       currentTask: active || null,
       model,
+      modelTier,
       enabled,
       detected: detectInfo.detected,
       version: detectInfo.version,
