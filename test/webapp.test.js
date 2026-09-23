@@ -79,8 +79,11 @@ describe('Web UI & API Server', () => {
     assert.equal(json.status, 'ok');
   });
 
-  test('POST /api/run validates task input and runs task', async () => {
-    const postData = JSON.stringify({ task: 'Create a small test note' });
+  test('POST /api/run validates task input and runs task (dry-run)', async () => {
+    const postData = JSON.stringify({
+      task: 'Create a small test note',
+      options: { dryRun: true }
+    });
     const res = await request({
       path: '/api/run',
       method: 'POST',

@@ -29,6 +29,17 @@ export async function handleRunCommand(taskDescription, options = {}) {
     const routed = await routeTasks(plan, options.strategy);
     saveRunState(runRecord.id, runRecord);
 
+    if (options.dryRun || options['dry-run']) {
+      logger.info('Dry-run completed. Plan and assignments generated without execution.');
+      runRecord.status = 'completed';
+      runRecord.summary = 'Dry-run plan generated.';
+      saveRunState(runRecord.id, runRecord);
+      if (options.json) {
+        console.log(JSON.stringify({ runId: runRecord.id, plan, routed }, null, 2));
+      }
+      return { runId: runRecord.id, plan, routed, results: [], report: 'Dry-run plan generated.' };
+    }
+
     const results = await runTasks(routed);
     runRecord.results = results;
     

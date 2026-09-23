@@ -160,26 +160,28 @@ export async function runDoctor(options = {}) {
     }
   }
 
-  // 7. Worker Adapters Detection & Deep Probing
-  for (const [id, Adapter] of Object.entries(adapters)) {
-    try {
-      const detected = await Adapter.detect();
-      const version = detected ? await Adapter.version() : 'Not detected';
-      checks.push({
-        status: detected ? 'OK' : 'WARN',
-        category: 'Workers',
-        name: id,
-        details: detected ? `Detected (${version})` : 'CLI binary not in PATH',
-        hint: detected ? '' : `Install or connect ${id} CLI`
-      });
-    } catch (err) {
-      checks.push({
-        status: 'WARN',
-        category: 'Workers',
-        name: id,
-        details: `Detection error: ${err.message}`,
-        hint: `Verify installation of ${id}`
-      });
+  // 7. Worker Adapters Detection & Deep Probing (only when --deep flag is specified)
+  if (options.deep) {
+    for (const [id, Adapter] of Object.entries(adapters)) {
+      try {
+        const detected = await Adapter.detect();
+        const version = detected ? await Adapter.version() : 'Not detected';
+        checks.push({
+          status: detected ? 'OK' : 'WARN',
+          category: 'Workers',
+          name: id,
+          details: detected ? `Detected (${version})` : 'CLI binary not in PATH',
+          hint: detected ? '' : `Install or connect ${id} CLI`
+        });
+      } catch (err) {
+        checks.push({
+          status: 'WARN',
+          category: 'Workers',
+          name: id,
+          details: `Detection error: ${err.message}`,
+          hint: `Verify installation of ${id}`
+        });
+      }
     }
   }
 
