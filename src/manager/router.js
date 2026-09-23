@@ -21,7 +21,7 @@ const capabilityMap = {
   docs: ["hermes"],
   devops: ["opencode"],
   review: ["codex"],
-  other: ["custom"],
+  other: ["codex", "custom"],
 };
 
 export async function routeTasks(plan, strategy = "free-first") {

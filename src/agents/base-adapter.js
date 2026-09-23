@@ -17,7 +17,7 @@ import { execa } from "execa";
 import { logger } from "../core/logger.js";
 import { WorkerError, QuotaError, AuthError, NetworkError } from "../core/errors.js";
 import { getDataDir } from "../core/paths.js";
-import { promises as fs } from "node:fs";
+import { readFileSync } from "node:fs";
 
 /**
  * Helper to kill a process tree on timeout.
@@ -86,10 +86,12 @@ export class BaseAdapter {
     const cmd = this.buildCommand(task, opts);
     const cwd = opts.cwd ?? process.cwd();
     logger.task(task.id, `Running ${cmd[0]} …`);
+    const inputData = task.promptFile ? readFileSync(task.promptFile, "utf8") : undefined;
     const child = execa(cmd[0], cmd.slice(1), {
       cwd,
       timeout: timeoutMs,
       all: true,
+      input: inputData,
     });
 
     // Forward output to logger in real‑time.

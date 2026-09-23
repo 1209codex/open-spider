@@ -17,6 +17,7 @@ import { renderBanner } from '../src/ui/banner.js';
 import { logger } from '../src/core/logger.js';
 import { formatError } from '../src/core/errors.js'; import { handleSetupWizard } from '../src/cli/setup.js';
 import { handleRunCommand } from "../src/cli/run.js";
+import { handleServeCommand } from "../src/cli/serve.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -158,11 +159,17 @@ program
   });
 
 program
-  .command('runs [action]')
-  .description('Manage execution history and resume runs (list | show | resume)')
-  .action((action) => {
-    logger.info(`Runs command: ${action || 'list'}`);
+  .command('serve')
+  .description('Start minimal web UI for Open‑spider')
+  .action(() => {
+    try {
+      handleServeCommand();
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
+
 
 program
   .command('mcp-serve')

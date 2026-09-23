@@ -33,11 +33,9 @@ export class CodexAdapter extends BaseAdapter {
    */
   buildCommand(task, opts) {
     const prompt = readFileSync(task.promptFile, "utf8");
-    const args = ["exec"];
+    const args = ["exec"]; 
     if (task.model) args.push("--model", task.model);
-    // Pass the prompt directly as an argument.
-    args.push(prompt);
-    // Pass through any worker‑specific options.
+    // No prompt argument; content will be passed via stdin by BaseAdapter.
     if (task.options && task.options.codexFlags) {
       args.push(...task.options.codexFlags);
     }

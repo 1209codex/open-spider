@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open-Spider | Terminal Manager AI Agent</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">🕷️</div>
+        <div class="brand-info">
+          <h2>Open-Spider</h2>
+          <span class="badge matrix">v0.1.0 • Core</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-tab="dashboard">
+          <span class="nav-icon">⚡</span> Dashboard & Run
+        </button>
+        <button class="nav-btn" data-tab="history">
+          <span class="nav-icon">📜</span> Runs History
+        </button>
+        <button class="nav-btn" data-tab="ecosystem">
+          <span class="nav-icon">🧩</span> MCP & Plugins
+        </button>
+        <button class="nav-btn" data-tab="health">
+          <span class="nav-icon">🩺</span> System Health
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="status-indicator">
+          <span class="pulse-dot"></span>
+          <span>Manager Ready</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Dashboard View -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <header class="content-header">
+          <div>
+            <h1>Task Orchestration</h1>
+            <p class="subtitle">Manager AI agent orchestrating external coding-agent CLIs as workers.</p>
+          </div>
+          <div class="header-actions">
+            <span id="quick-status" class="status-tag">Ready for tasks</span>
+          </div>
+        </header>
+
+        <!-- Task Input Box -->
+        <div class="card glass-card task-card">
+          <form id="taskForm">
+            <div class="form-group">
+              <label for="taskInput">Goal or Task Description</label>
+              <textarea id="taskInput" placeholder="e.g. Write a comprehensive README with usage instructions..." rows="3" required></textarea>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group select-group">
+                <label for="strategySelect">Routing Strategy</label>
+                <select id="strategySelect">
+                  <option value="free-first" selected>Free-First (Free tier prioritization)</option>
+                  <option value="balanced">Balanced (Distribute load)</option>
+                  <option value="quality">Quality (Highest capability)</option>
+                </select>
+              </div>
+
+              <div class="form-group select-group">
+                <label for="workerPin">Worker Pin (Optional)</label>
+                <select id="workerPin">
+                  <option value="">Auto-Route by Planner</option>
+                  <option value="codex">Codex CLI</option>
+                  <option value="opencode">OpenCode</option>
+                  <option value="hermes">Hermes Agent</option>
+                  <option value="antigravity">Antigravity CLI</option>
+                </select>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" id="submitBtn" class="btn primary-btn">
+                  <span class="btn-icon">🚀</span> Dispatch Task
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Realtime Live Execution Progress -->
+        <div id="executionSection" class="execution-section hidden">
+          <div class="section-title-row">
+            <h2>Live Execution</h2>
+            <span id="execRunId" class="code-pill"></span>
+          </div>
+
+          <div class="grid-2col">
+            <!-- Plan & Decomposition Card -->
+            <div class="card glass-card">
+              <div class="card-header">
+                <h3>📋 Task Decomposition Plan</h3>
+                <span id="planSummary" class="badge"></span>
+              </div>
+              <div id="planContainer" class="plan-list">
+                <div class="placeholder-text">Waiting for planner...</div>
+              </div>
+            </div>
+
+            <!-- Summary & Synthesizer Card -->
+            <div class="card glass-card">
+              <div class="card-header">
+                <h3>📊 Synthesis & Results</h3>
+                <span id="execStatusBadge" class="badge">Running</span>
+              </div>
+              <div id="summaryReport" class="report-box">
+                <div class="placeholder-text">Results will appear upon worker completion...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Log Stream Card -->
+          <div class="card glass-card log-card">
+            <div class="card-header">
+              <h3>📟 Execution Terminal Log</h3>
+              <button id="clearLogBtn" class="btn small-btn">Clear</button>
+            </div>
+            <pre id="logStream" class="log-stream">Initializing execution log...</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- History View -->
+      <section id="tab-history" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Run History</h1>
+            <p class="subtitle">Inspect past decomposed plans, worker logs, and execution summaries.</p>
+          </div>
+          <button id="refreshRunsBtn" class="btn secondary-btn">🔄 Refresh</button>
+        </header>
+
+        <div class="card glass-card">
+          <div class="table-responsive">
+            <table class="data-table" id="runsTable">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Goal</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="runsTableBody">
+                <tr><td colspan="5" class="text-center">Loading runs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ecosystem View (MCP & Plugins) -->
+      <section id="tab-ecosystem" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Ecosystem: MCP & Plugins</h1>
+            <p class="subtitle">Model Context Protocol server registry and runtime plugins.</p>
+          </div>
+          <button id="refreshEcosystemBtn" class="btn secondary-btn">🔄 Refresh</button>
+        </header>
+
+        <div class="grid-2col">
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3>🔌 MCP Servers</h3>
+            </div>
+            <div id="mcpList" class="eco-list">
+              <div class="placeholder-text">Loading MCP servers...</div>
+            </div>
+          </div>
+
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3>📦 Installed Plugins</h3>
+            </div>
+            <div id="pluginList" class="eco-list">
+              <div class="placeholder-text">Loading plugins...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- System Health View -->
+      <section id="tab-health" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>System & Worker Health</h1>
+            <p class="subtitle">Live status, cooldowns, and adapter availability diagnostics.</p>
+          </div>
+          <button id="refreshHealthBtn" class="btn secondary-btn">🔄 Check Health</button>
+        </header>
+
+        <div class="card glass-card">
+          <div class="card-header">
+            <h3>🤖 Worker Adapters Status</h3>
+          </div>
+          <div id="workerHealthGrid" class="health-grid">
+            <div class="placeholder-text">Loading health report...</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

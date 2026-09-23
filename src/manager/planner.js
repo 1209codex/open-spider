@@ -12,7 +12,10 @@ import { tmpdir } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import { logger } from "../core/logger.js";
 import { formatError } from "../core/errors.js";
+import { LLMClient } from "../providers/llm-client.js";
 import { getConfigValue } from "../core/config.js";
+import { getAllProviders } from "../providers/providers-store.js";
+import { getSecret } from "../core/secrets.js";
 
 // Simple fallback plan when LLM is unavailable or fails.
 function fallbackPlan(taskDescription) {
@@ -28,7 +31,7 @@ function fallbackPlan(taskDescription) {
         kind: "other",
         depends_on: [],
         write: false,
-        suggested_worker: "custom",
+        suggested_worker: "codex",
         why: "fallback",
         acceptance: ["Task completed"],
         promptFile: tmpPath,
@@ -37,11 +40,23 @@ function fallbackPlan(taskDescription) {
   };
 }
 
-
 export async function planTask(taskDescription) {
   const providerId = getConfigValue("manager.provider") || "openrouter";
-  const model = getConfigValue("manager.model") || "gpt-4o-mini";
-  const client = new LLMClient({ providerId, model });
+  const model = getConfigValue("manager.model") || "google/gemini-2.5-flash";
+
+  const providers = getAllProviders();
+  const providerDef = providers.find((p) => p.id === providerId) || {
+    id: providerId,
+    baseUrl: 'https://openrouter.ai/api/v1',
+    envKey: 'OPENROUTER_API_KEY'
+  };
+
+  const apiKey = getSecret(providerDef.id, providerDef.envKey);
+  const client = new LLMClient({
+    baseUrl: providerDef.baseUrl,
+    apiKey
+  });
+
   const prompt = `You are an AI planning assistant. Produce a JSON plan for the following task. Follow this schema exactly:
 ${JSON.stringify(
     {
@@ -53,7 +68,7 @@ ${JSON.stringify(
           instructions: "string",
           kind: "frontend|backend|tests|refactor|debug|research|docs|devops|review|other",
           depends_on: ["string"],
-          write: true|false,
+          write: true,
           suggested_worker: "string",
           why: "string",
           acceptance: ["string"]
@@ -67,14 +82,27 @@ ${JSON.stringify(
   try {
     logger.info(`Planning task via ${providerId}/${model}`);
     const response = await client.complete({
+      model,
       messages: [{ role: "system", content: prompt }],
       temperature: 0,
+      json: true
     });
-    const plan = JSON.parse(response?.choices?.[0]?.message?.content || "{}");
+    const content = response?.content || "{}";
+    const plan = JSON.parse(content);
+    if (!plan.tasks || !Array.isArray(plan.tasks) || plan.tasks.length === 0) {
+      throw new Error("Invalid plan generated: missing tasks array");
+    }
+    // Ensure promptFile is set for each task
+    for (const t of plan.tasks) {
+      if (!t.promptFile) {
+        const tmpPath = join(tmpdir(), `open-spider-${Date.now()}-${t.id || 't'}.txt`);
+        writeFileSync(tmpPath, t.instructions || t.title || taskDescription);
+        t.promptFile = tmpPath;
+      }
+    }
     return plan;
   } catch (err) {
     logger.warn(`Planner error: ${formatError(err)}`);
-    // Return fallback plan
     return fallbackPlan(taskDescription);
   }
 }

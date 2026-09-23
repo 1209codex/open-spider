@@ -15,7 +15,7 @@ export class LLMClient {
    * @param {number} [opts.timeoutMs=60000]
    */
   constructor(opts) {
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
+    this.baseUrl = (opts.baseUrl || '').replace(/\/+$/, '');
     this.apiKey = opts.apiKey || '';
     this.customHeaders = opts.headers || {};
     this.maxRetries = opts.maxRetries ?? 2;

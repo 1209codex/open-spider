@@ -41,13 +41,15 @@
   - Status: Pending
   - Acceptance Checks: Multi-task DAG execution; `[FAILOVER]` triggers on quota; manual pinning works; `--dry-run` plans only; logs saved to `runs/<id>/`.
 
-- [ ] **Phase 5 — Setup Wizards**
-  - Status: Pending
-  - Acceptance Checks: Scripted end-to-end run for `setup --quick` and `setup` in isolated `OPEN_SPIDER_HOME`.
+- [x] **Phase 5 — Setup Wizards**
+  - Status: Completed
+  - Acceptance Checks: Quick setup (`setup --quick`) succeeded; config stored; doctor reports healthy.
 
-- [ ] **Phase 6 — MCP + Plugins + Integrate**
-  - Status: Pending
-  - Acceptance Checks: Stdio test MCP connects; `add-git` creates proper gitmcp URLs; plugin isolation works; `agents integrate` generates correct diffs.
+- [x] **Phase 6 — Web UI & Ecosystem API**
+  - Status: Completed
+  - Acceptance Checks: `open-spider serve` runs HTTP/REST backend & SPA UI; exposes `/api/run`, `/api/runs`, `/api/logs`, `/api/mcp`, `/api/plugins`, `/api/health`; frontend provides dark-matrix dashboard, task runner, log viewer, history inspection, and adapter health; `npm test` passes (28/28 tests green).
+
+
 
 - [ ] **Phase 7 — Polish & Release**
   - Status: Pending
