@@ -18,6 +18,7 @@ import { logger } from "../core/logger.js";
 import { WorkerError, QuotaError, AuthError, NetworkError } from "../core/errors.js";
 import { getDataDir } from "../core/paths.js";
 import { readFileSync } from "node:fs";
+import { events } from "../core/events.js";
 
 /**
  * Helper to kill a process tree on timeout.
@@ -94,10 +95,12 @@ export class BaseAdapter {
       input: inputData,
     });
 
-    // Forward output to logger in real‑time.
+    // Forward output to logger and event stream in real‑time.
     if (child.all) {
       child.all.on("data", (chunk) => {
-        logger.task(task.id, chunk.toString());
+        const text = chunk.toString();
+        logger.task(task.id, text);
+        events.emitTaskOutput(opts.runId || '', task.id, task.worker || cmd[0], text);
       });
     }
 

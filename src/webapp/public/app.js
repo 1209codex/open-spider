@@ -806,6 +806,48 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
+  // Real-Time EventSource (SSE) Connection
+  let eventSource = null;
+  function connectEventStream() {
+    if (eventSource || typeof EventSource === 'undefined') return;
+    try {
+      eventSource = new EventSource('/api/events');
+      eventSource.onopen = () => {
+        const pulse = document.querySelector('.pulse-dot');
+        if (pulse) pulse.style.background = 'var(--accent-matrix)';
+      };
+
+      eventSource.onmessage = (e) => {
+        try {
+          if (!e.data || e.data.startsWith(':')) return;
+          const evt = JSON.parse(e.data);
+          handleLiveEvent(evt);
+        } catch {}
+      };
+
+      eventSource.onerror = () => {
+        const pulse = document.querySelector('.pulse-dot');
+        if (pulse) pulse.style.background = 'var(--accent-warn)';
+      };
+    } catch {}
+  }
+
+  function handleLiveEvent(evt) {
+    if (evt.type === 'task:output' && evt.text) {
+      if (logStream) {
+        logStream.textContent += evt.text;
+        logStream.scrollTop = logStream.scrollHeight;
+      }
+    } else if (evt.type === 'worker:state') {
+      loadMiniWorkers();
+    } else if (evt.type === 'task:started') {
+      if (quickStatus) quickStatus.textContent = `Worker [${evt.worker}] started task ${evt.taskId}`;
+    } else if (evt.type === 'task:completed') {
+      if (quickStatus) quickStatus.textContent = `Worker [${evt.worker}] completed task ${evt.taskId}`;
+    }
+  }
+
   // Initial load
   loadMiniWorkers();
+  connectEventStream();
 });

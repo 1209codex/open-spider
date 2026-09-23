@@ -14,6 +14,7 @@ import { loadConfig } from "../core/config.js";
 import { listMcpServers } from "../mcp/mcp-manager.js";
 import { invokeMcpTool } from "../mcp/tools-loader.js";
 import { buildSkillsGuidanceContext } from "../skills/skills-manager.js";
+import { events } from "../core/events.js";
 
 /**
  * Builds collaborative prompt file injecting goal, task instructions, skills, and previous team outputs.
@@ -83,20 +84,23 @@ async function executeTask(task, sharedContext, options = {}) {
 
     logger.task(task.id, `[Agent: ${currentWorker}] starting task "${task.title || task.id}" (attempt ${attempt})`);
     setWorkerWorking(currentWorker, task);
+    events.emitTaskState('started', { taskId: task.id, title: task.title, worker: currentWorker, runId: options.runId });
 
     try {
       const taskWithPrompt = { ...task, promptFile: promptPath, model: task.model };
-      const res = await adapter.run(taskWithPrompt, { cwd: options.cwd || process.cwd() });
+      const res = await adapter.run(taskWithPrompt, { cwd: options.cwd || process.cwd(), runId: options.runId });
 
       if (res.ok) {
         await recordSuccess(currentWorker);
         logger.ok(`[Agent: ${currentWorker}] completed task ${task.id}`);
+        events.emitTaskState('completed', { taskId: task.id, worker: currentWorker, summary: res.summary || 'Completed', runId: options.runId });
         return { taskId: task.id, worker: currentWorker, result: res };
       }
 
       // Record failure and check for failover
       await recordFailure(currentWorker, res.errorClass);
       logger.warn(`[Agent: ${currentWorker}] task ${task.id} failed (${res.errorClass?.name || 'Error'})`);
+      events.emitTaskState('failed', { taskId: task.id, worker: currentWorker, error: res.errorClass?.name || 'Error', runId: options.runId });
 
       // Automatic failover to another healthy worker
       const fallbackList = ['opencode', 'codex', 'hermes', 'antigravity'].filter((w) => w !== currentWorker);

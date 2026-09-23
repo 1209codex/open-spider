@@ -79,6 +79,17 @@
     - [x] `test/skills.test.js`: Verified Hermes parser, self-learning store, keyword search, context injection, and REST API.
   - Acceptance Checks: `npm test` 55/55 green; all files < 250 lines; pure ESM.
 
+- [x] **Phase 13 — Live Event Streaming (SSE / Web UI Real-Time Updates)**
+  - Status: Completed
+  - Tasks:
+    - [x] `src/core/events.js`: Central in-memory `SpiderEventBus` emitting task output chunks, worker status, and lifecycle events.
+    - [x] `src/agents/health.js` & `src/agents/base-adapter.js`: Integrated live worker state changes and real-time process stdout/stderr chunk forwarding.
+    - [x] `src/manager/scheduler.js`: Integrated `task:started`, `task:completed`, and `task:failed` state broadcasting.
+    - [x] `src/webapp/server.js`: Implemented `GET /api/events` Server-Sent Events (SSE) stream endpoint with keep-alive and disconnect cleanup.
+    - [x] `src/webapp/public/app.js`: Connected frontend `EventSource('/api/events')` to stream live execution logs and fleet activity in real-time.
+    - [x] `test/events-sse.test.js`: Verified event bus emissions, payload structure, and HTTP SSE streaming.
+  - Acceptance Checks: `npm test` 58/58 green; all files < 250 lines; pure ESM.
+
 ---
 
 ## Verified CLI Flags & Signatures

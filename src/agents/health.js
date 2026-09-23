@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { AGENT_PROFILES } from "../data/agent-profiles.js";
 import { loadConfig } from "../core/config.js";
 import { getModelTier } from "../providers/model-list.js";
+import { events } from "../core/events.js";
 
 const healthFile = () => join(getDataDir(), "cache", "health.json");
 
@@ -32,16 +33,19 @@ async function saveHealth(obj) {
 
 export function setWorkerWorking(workerId, task) {
   if (!workerId) return;
-  activeTasks.set(workerId, {
+  const taskInfo = {
     taskId: task?.id || "unknown",
     taskTitle: task?.title || task?.instructions || "Working...",
     startedAt: Date.now()
-  });
+  };
+  activeTasks.set(workerId, taskInfo);
+  events.emitWorkerState(workerId, "working", taskInfo);
 }
 
 export function setWorkerIdle(workerId) {
   if (!workerId) return;
   activeTasks.delete(workerId);
+  events.emitWorkerState(workerId, "idle");
 }
 
 export async function recordSuccess(workerId) {

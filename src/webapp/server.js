@@ -16,6 +16,7 @@ import { getHealthReport, getWorkersStatus } from '../agents/health.js';
 import { loadConfig, saveConfig } from '../core/config.js';
 import { getAllCuratedModels } from '../providers/model-list.js';
 import { listSkills, learnSkill, importHermesSkills } from '../skills/skills-manager.js';
+import { events } from '../core/events.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -170,34 +171,37 @@ export async function startServer(port = process.env.PORT || 3000) {
         return sendJson(200, { skills: listSkills() });
       }
 
-      // API: POST /api/skills/learn
+      // API: POST /api/skills/learn & import
       if (req.method === 'POST' && pathname === '/api/skills/learn') {
-        let body = '';
-        req.on('data', (c) => (body += c));
+        let b = ''; req.on('data', (c) => (b += c));
         req.on('end', () => {
-          try {
-            const skill = learnSkill(JSON.parse(body || '{}'));
-            sendJson(200, { ok: true, skill });
-          } catch (e) {
-            sendJson(400, { error: e.message });
-          }
+          try { sendJson(200, { ok: true, skill: learnSkill(JSON.parse(b || '{}')) }); }
+          catch (e) { sendJson(400, { error: e.message }); }
+        });
+        return;
+      }
+      if (req.method === 'POST' && pathname === '/api/skills/import-hermes') {
+        let b = ''; req.on('data', (c) => (b += c));
+        req.on('end', () => {
+          try { sendJson(200, { ok: true, ...importHermesSkills(JSON.parse(b || '{}').path) }); }
+          catch (e) { sendJson(500, { error: e.message }); }
         });
         return;
       }
 
-      // API: POST /api/skills/import-hermes
-      if (req.method === 'POST' && pathname === '/api/skills/import-hermes') {
-        let body = '';
-        req.on('data', (c) => (body += c));
-        req.on('end', () => {
-          try {
-            const payload = JSON.parse(body || '{}');
-            const resData = importHermesSkills(payload.path);
-            sendJson(200, { ok: true, ...resData });
-          } catch (e) {
-            sendJson(500, { error: e.message });
-          }
+      // API: GET /api/events (SSE Stream)
+      if (req.method === 'GET' && (pathname === '/api/events' || pathname === '/events')) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*'
         });
+        res.write('retry: 1000\n\n');
+        const sendEvent = (evt) => { try { res.write(`data: ${JSON.stringify(evt)}\n\n`); } catch {} };
+        events.on('*', sendEvent);
+        const heartbeat = setInterval(() => { try { res.write(': heartbeat\n\n'); } catch {} }, 15000);
+        req.on('close', () => { clearInterval(heartbeat); events.off('*', sendEvent); });
         return;
       }
 
