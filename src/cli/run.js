@@ -1,7 +1,7 @@
 // src/cli/run.js
 /**
  * Implementation of the `open-spider run "<task>"` command.
- * It ties together the manager brain: planner → router → scheduler → synthesizer.
+ * Coordinates manager pipeline: planner → router → scheduler → synthesizer → verification.
  */
 import { logger } from "../core/logger.js";
 import { planTask } from "../manager/planner.js";
@@ -11,6 +11,7 @@ import { synthesizeResults } from "../manager/synthesizer.js";
 import { createRun, saveRunState } from "../core/run-state.js";
 import { getRunDir } from "../core/paths.js";
 import { join } from "node:path";
+import { execa } from "execa";
 
 export async function handleRunCommand(taskDescription, options = {}) {
   const runRecord = createRun(taskDescription, options);
@@ -40,10 +41,24 @@ export async function handleRunCommand(taskDescription, options = {}) {
       return { runId: runRecord.id, plan, routed, results: [], report: 'Dry-run plan generated.' };
     }
 
-    const results = await runTasks(routed, options);
+    const results = await runTasks(routed, { ...options, runId: runRecord.id });
     runRecord.results = results;
     
-    const report = synthesizeResults(results);
+    let report = synthesizeResults(results);
+
+    // Optional verification command execution
+    if (options.verify) {
+      logger.info(`Running verification command: "${options.verify}"...`);
+      try {
+        const verifyRes = await execa(options.verify, { shell: true, cwd: options.cwd || process.cwd() });
+        logger.ok(`Verification succeeded:\n${verifyRes.stdout || 'OK'}`);
+        report += `\n\n🔍 Verification (${options.verify}): PASSED\n${verifyRes.stdout || ''}`;
+      } catch (verifyErr) {
+        logger.fail(`Verification failed:\n${verifyErr.stderr || verifyErr.stdout || verifyErr.message}`);
+        report += `\n\n🔍 Verification (${options.verify}): FAILED\n${verifyErr.stderr || verifyErr.stdout || verifyErr.message}`;
+      }
+    }
+
     runRecord.summary = report;
     runRecord.status = results.every(r => r.result?.ok) ? 'completed' : 'failed';
     saveRunState(runRecord.id, runRecord);

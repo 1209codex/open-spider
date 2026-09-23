@@ -48,11 +48,15 @@
 
 - [x] **Phase 9 — Interactive Manager REPL & Slash Command Session**
   - Status: Completed
+  - Acceptance Checks: Interactive readline REPL with live status banner, slash command dispatcher (`/help`, `/plan`, `/workers`, `/use`, `/pin`, `/exclude`, `/enable`, `/disable`, `/model`, `/status`, `/runs`, `/mcp`, `/clear`, `/quit`). `npm test` 40/40 green.
+
+- [x] **Phase 10 — Worktree Isolation & Post-Run Verification**
+  - Status: Completed
   - Tasks:
-    - [x] `src/manager/session.js` interactive readline REPL with live status banner, slash command dispatcher (`/help`, `/plan`, `/workers`, `/use`, `/pin`, `/exclude`, `/enable`, `/disable`, `/model`, `/status`, `/runs`, `/mcp`, `/clear`, `/quit`).
-    - [x] `bin/open-spider.js` wired interactive REPL to default root execution.
-    - [x] `test/session.test.js` verified slash command parsing, pin/exclude state, and manager switching.
-  - Acceptance Checks: `npm test` 40/40 green; all files < 250 lines; pure ESM.
+    - [x] `src/core/worktree.js` git repository detection, branch isolation (`spider/<runId>/<taskId>`), sequential merging, and worktree cleanup.
+    - [x] `src/cli/run.js` added `--verify "<cmd>"` execution and synthesized verification status report.
+    - [x] `test/worktree-verify.test.js` verified git repository detection and verification command execution.
+  - Acceptance Checks: `npm test` 42/42 green; all files < 250 lines; pure ESM.
 
 ---
 
