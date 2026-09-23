@@ -14,6 +14,7 @@ import { handleRunCommand } from '../cli/run.js';
 import { handleAgentsCommand } from '../cli/agents.js';
 import { handleRunsCommand } from '../cli/runs.js';
 import { handleMcpCommand } from '../cli/cli-mcp.js';
+import { handleSkillsCommand } from '../cli/cli-skills.js';
 import { getWorkersStatus } from '../agents/health.js';
 import { planTask } from './planner.js';
 import { routeTasks } from './router.js';
@@ -35,6 +36,8 @@ export async function executeSlashCommand(cmdLine, sessionState = {}) {
       console.log(`  ${theme.cyan('/use <provider/model>')}    Switch manager provider or model`);
       console.log(`  ${theme.cyan('/pin <task|all> <worker>')} Pin task or entire session to worker`);
       console.log(`  ${theme.cyan('/exclude <worker>')}        Exclude a worker from task routing`);
+      console.log(`  ${theme.cyan('/skills [list|import]')}   List or import Hermes / self-learned skills`);
+      console.log(`  ${theme.cyan('/learn <name> <guide>')}    Learn and index a new skill into registry`);
       console.log(`  ${theme.cyan('/enable <worker>')}         Enable a worker`);
       console.log(`  ${theme.cyan('/disable <worker>')}        Disable a worker`);
       console.log(`  ${theme.cyan('/model <worker> <model>')}  Assign model to worker`);
@@ -91,16 +94,14 @@ export async function executeSlashCommand(cmdLine, sessionState = {}) {
       break;
     }
 
-    case '/exclude': {
-      if (args.length < 1) {
-        logger.warn('Usage: /exclude <workerId>');
-        break;
+    case '/exclude':
+      if (!args[0]) logger.warn('Usage: /exclude <workerId>');
+      else {
+        sessionState.excluded = sessionState.excluded || [];
+        sessionState.excluded.push(args[0]);
+        logger.ok(`Excluded worker [${theme.highlight(args[0])}] from session routing`);
       }
-      sessionState.excluded = sessionState.excluded || [];
-      sessionState.excluded.push(args[0]);
-      logger.ok(`Excluded worker [${theme.highlight(args[0])}] from session routing`);
       break;
-    }
 
     case '/enable':
       if (args[0]) await handleAgentsCommand('enable', args[0]);
@@ -117,25 +118,19 @@ export async function executeSlashCommand(cmdLine, sessionState = {}) {
       else logger.warn('Usage: /model <worker> <modelId>');
       break;
 
-    case '/use': {
-      if (!args[0]) {
-        logger.warn('Usage: /use <provider> [model] or /use <provider/model>');
-        break;
-      }
-      const val = args[0];
-      if (val.includes('/')) {
-        const [prov, ...rest] = val.split('/');
-        const mod = rest.join('/');
+    case '/use':
+      if (!args[0]) logger.warn('Usage: /use <provider> [model] or /use <provider/model>');
+      else if (args[0].includes('/')) {
+        const [prov, ...rest] = args[0].split('/');
         setConfigValue('manager.provider', prov);
-        setConfigValue('manager.model', mod);
-        logger.ok(`Switched manager to provider [${prov}] with model [${mod}]`);
+        setConfigValue('manager.model', rest.join('/'));
+        logger.ok(`Switched manager to [${prov}/${rest.join('/')}]`);
       } else {
-        setConfigValue('manager.provider', val);
+        setConfigValue('manager.provider', args[0]);
         if (args[1]) setConfigValue('manager.model', args[1]);
-        logger.ok(`Switched manager provider to [${val}]`);
+        logger.ok(`Switched manager provider to [${args[0]}]`);
       }
       break;
-    }
 
     case '/status': {
       const config = loadConfig();
@@ -160,6 +155,19 @@ export async function executeSlashCommand(cmdLine, sessionState = {}) {
     case '/runs':
       await handleRunsCommand('list');
       break;
+
+    case '/skills':
+      await handleSkillsCommand(args[0] || 'list', args[1], args[2], args[3]);
+      break;
+
+    case '/learn': {
+      if (args.length < 2) {
+        logger.warn('Usage: /learn <skill-name> <instructions>');
+        break;
+      }
+      await handleSkillsCommand('learn', args[0], args.slice(1).join(' '));
+      break;
+    }
 
     case '/mcp':
       await handleMcpCommand('list');

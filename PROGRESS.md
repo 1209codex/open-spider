@@ -65,6 +65,20 @@
     - [x] `test/models-catalog.test.js` verified catalog aggregation, free-first ordering, and tier classification.
   - Acceptance Checks: `npm test` 46/46 green; all files < 250 lines; pure ESM.
 
+- [x] **Phase 12 — Hermes Skills Replication & Self-Learning System**
+  - Status: Completed
+  - Tasks:
+    - [x] `src/skills/hermes-importer.js`: Recursive discovery and YAML frontmatter parsing of Hermes `SKILL.md` files without external dependencies.
+    - [x] `src/skills/skills-manager.js`: Skills registry store (`~/.open-spider/skills/skills.json`), foundational built-in skills, `learnSkill()`, `importHermesSkills()`, `findRelevantSkills()`, and `buildSkillsGuidanceContext()`.
+    - [x] `src/cli/cli-skills.js`: CLI command handlers (`list`, `import-hermes`, `learn`, `show`, `search`).
+    - [x] `bin/open-spider.js` & `src/cli/help.js`: Wired `open-spider skills` command and comprehensive examples.
+    - [x] `src/manager/planner.js` & `src/manager/scheduler.js`: Auto-injection of relevant skills guidance into planner decomposition prompts and worker collaborative instructions.
+    - [x] `src/manager/session.js`: Added `/skills` and `/learn` REPL slash commands.
+    - [x] `src/webapp/server.js`: Added REST API endpoints (`GET /api/skills`, `POST /api/skills/learn`, `POST /api/skills/import-hermes`).
+    - [x] `src/webapp/public/`: Added **🧠 Skills & Self-Learning** UI tab, Hermes importer button, learn skill modal, search & tag filter, and instruction viewer.
+    - [x] `test/skills.test.js`: Verified Hermes parser, self-learning store, keyword search, context injection, and REST API.
+  - Acceptance Checks: `npm test` 55/55 green; all files < 250 lines; pure ESM.
+
 ---
 
 ## Verified CLI Flags & Signatures

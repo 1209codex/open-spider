@@ -1,22 +1,8 @@
 // src/webapp/server.js
 /**
  * Web server for Open‑spider UI and local REST API.
- * Uses only Node core modules (http, fs, path).
- * Exposes endpoints:
- *   POST /api/run      – execute a task (async or await), returns run object
- *   GET  /api/runs     – list past execution runs
- *   GET  /api/runs/:id – get details of a specific run
- *   GET  /api/logs/:id – stream run.log file for a run
- *   GET  /api/workers  – list company employee agents, live status, models
- *   GET  /api/models   – list curated models with [FREE]/[PAID] categorization
- *   GET  /api/settings – retrieve manager, routing & worker settings
- *   POST /api/settings – update manager, routing & worker settings
- *   GET  /api/mcp      – list configured MCP servers
- *   GET  /api/plugins  – list installed plugins
- *   GET  /api/health   – system health & diagnostics
- *   GET  /...          – serve modern static files from ./public/
+ * Exposes /api/run, /api/runs, /api/workers, /api/models, /api/skills, /api/settings, /api/health.
  */
-
 import { createServer } from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -29,6 +15,7 @@ import { listPlugins } from '../plugins/plugin-manager.js';
 import { getHealthReport, getWorkersStatus } from '../agents/health.js';
 import { loadConfig, saveConfig } from '../core/config.js';
 import { getAllCuratedModels } from '../providers/model-list.js';
+import { listSkills, learnSkill, importHermesSkills } from '../skills/skills-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,20 +29,14 @@ export async function startServer(port = process.env.PORT || 3000) {
 
       const sendJson = (status, obj) => {
         res.writeHead(status, {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type'
         });
         res.end(JSON.stringify(obj));
       };
 
       if (req.method === 'OPTIONS') {
-        res.writeHead(204, {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        });
+        res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
         res.end();
         return;
       }
@@ -176,26 +157,54 @@ export async function startServer(port = process.env.PORT || 3000) {
 
       // API: GET /api/mcp
       if (req.method === 'GET' && (pathname === '/api/mcp' || pathname === '/mcp')) {
-        const servers = listMcpServers();
-        return sendJson(200, { servers });
+        return sendJson(200, { servers: listMcpServers() });
       }
 
       // API: GET /api/plugins
       if (req.method === 'GET' && (pathname === '/api/plugins' || pathname === '/plugins')) {
-        const plugins = listPlugins();
-        return sendJson(200, { plugins });
+        return sendJson(200, { plugins: listPlugins() });
+      }
+
+      // API: GET /api/skills
+      if (req.method === 'GET' && (pathname === '/api/skills' || pathname === '/skills')) {
+        return sendJson(200, { skills: listSkills() });
+      }
+
+      // API: POST /api/skills/learn
+      if (req.method === 'POST' && pathname === '/api/skills/learn') {
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          try {
+            const skill = learnSkill(JSON.parse(body || '{}'));
+            sendJson(200, { ok: true, skill });
+          } catch (e) {
+            sendJson(400, { error: e.message });
+          }
+        });
+        return;
+      }
+
+      // API: POST /api/skills/import-hermes
+      if (req.method === 'POST' && pathname === '/api/skills/import-hermes') {
+        let body = '';
+        req.on('data', (c) => (body += c));
+        req.on('end', () => {
+          try {
+            const payload = JSON.parse(body || '{}');
+            const resData = importHermesSkills(payload.path);
+            sendJson(200, { ok: true, ...resData });
+          } catch (e) {
+            sendJson(500, { error: e.message });
+          }
+        });
+        return;
       }
 
       // API: GET /api/health
       if (req.method === 'GET' && pathname === '/api/health') {
-        const workerHealth = await getHealthReport();
-        const workers = await getWorkersStatus();
-        return sendJson(200, {
-          status: 'ok',
-          uptime: process.uptime(),
-          workerHealth,
-          workers
-        });
+        const [workerHealth, workers] = await Promise.all([getHealthReport(), getWorkersStatus()]);
+        return sendJson(200, { status: 'ok', uptime: process.uptime(), workerHealth, workers });
       }
 
       // Static file server
@@ -205,11 +214,8 @@ export async function startServer(port = process.env.PORT || 3000) {
       if (existsSync(filePath)) {
         const ext = filePath.split('.').pop() || '';
         const mimeTypes = {
-          html: 'text/html; charset=utf-8',
-          js: 'application/javascript; charset=utf-8',
-          css: 'text/css; charset=utf-8',
-          svg: 'image/svg+xml',
-          json: 'application/json'
+          html: 'text/html; charset=utf-8', js: 'application/javascript; charset=utf-8',
+          css: 'text/css; charset=utf-8', svg: 'image/svg+xml', json: 'application/json'
         };
         res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
         createReadStream(filePath).pipe(res);

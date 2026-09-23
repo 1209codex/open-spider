@@ -93,6 +93,16 @@ const COMMAND_DETAILS = {
       'open-spider mcp add-git anthropics/anthropic-quickstarts',
       'open-spider mcp tools'
     ]
+  },
+  skills: {
+    usage: 'open-spider skills <list|import-hermes|learn|show|search>',
+    description: 'Replicate skills from Hermes Agent and manage self-learned practices.',
+    examples: [
+      'open-spider skills list',
+      'open-spider skills import-hermes',
+      'open-spider skills learn "Safe Migrations" "Always test in dry-run first"',
+      'open-spider skills show systematic-debugging'
+    ]
   }
 };
 
@@ -146,10 +156,11 @@ export function displayHelp(commandName) {
       ]
     },
     {
-      title: 'WORKERS & PROVIDERS',
+      title: 'WORKERS & SKILLS',
       commands: [
-        ['agents <list|connect|integrate|...>', 'Manage external worker CLIs'],
-        ['providers <list|add|remove|...>', 'Manage LLM API providers'],
+        ['agents <list|connect|...>', 'Manage external worker CLIs'],
+        ['skills <list|import-hermes|...>', 'Self-learn & replicate Hermes skills'],
+        ['providers <list|add|...>', 'Manage LLM API providers'],
         ['models [--free|--paid]', 'List models (Free models listed first)']
       ]
     },

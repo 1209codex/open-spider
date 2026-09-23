@@ -13,9 +13,10 @@ import { recordSuccess, recordFailure, setWorkerWorking, setWorkerIdle, isWorker
 import { loadConfig } from "../core/config.js";
 import { listMcpServers } from "../mcp/mcp-manager.js";
 import { invokeMcpTool } from "../mcp/tools-loader.js";
+import { buildSkillsGuidanceContext } from "../skills/skills-manager.js";
 
 /**
- * Builds collaborative prompt file injecting goal, task instructions, and previous team outputs.
+ * Builds collaborative prompt file injecting goal, task instructions, skills, and previous team outputs.
  */
 async function prepareCollaborativePrompt(task, sharedContext) {
   const tmpFile = join(tmpdir(), `spider-task-${task.id}-${Date.now()}.txt`);
@@ -24,6 +25,11 @@ async function prepareCollaborativePrompt(task, sharedContext) {
 
   if (task.acceptance && task.acceptance.length > 0) {
     content += `ACCEPTANCE CRITERIA:\n${task.acceptance.map((a) => `- ${a}`).join('\n')}\n\n`;
+  }
+
+  const skillsGuidance = buildSkillsGuidanceContext(task.instructions || task.title || '', [task.kind || 'general']);
+  if (skillsGuidance) {
+    content += `${skillsGuidance}\n\n`;
   }
 
   if (sharedContext && sharedContext.length > 0) {

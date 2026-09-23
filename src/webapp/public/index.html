@@ -28,6 +28,9 @@
         <button class="nav-btn" data-tab="fleet">
           <span class="nav-icon">🏢</span> Agents & Team
         </button>
+        <button class="nav-btn" data-tab="skills">
+          <span class="nav-icon">🧠</span> Skills & Learning
+        </button>
         <button class="nav-btn" data-tab="settings">
           <span class="nav-icon">⚙️</span> Settings & Models
         </button>
@@ -168,6 +171,86 @@
 
         <div id="fleetCardsContainer" class="fleet-grid">
           <div class="placeholder-text">Loading agent team...</div>
+        </div>
+      </section>
+
+      <!-- 2b. Skills & Self-Learning View -->
+      <section id="tab-skills" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Skills & Self-Learning</h1>
+            <p class="subtitle">Replicate skills from Hermes Agent and auto-inject self-learned best practices into task workflows.</p>
+          </div>
+          <div class="header-actions">
+            <button id="importHermesBtn" class="btn secondary-btn">📥 Import Hermes Skills</button>
+            <button id="openLearnModalBtn" class="btn primary-btn">➕ Self-Learn Skill</button>
+          </div>
+        </header>
+
+        <!-- Search & Filter Controls -->
+        <div class="card glass-card skills-filter-card">
+          <div class="skills-filter-row">
+            <div class="search-box">
+              <input type="text" id="skillsSearchInput" placeholder="🔍 Search skills by name, tag, or keywords..." />
+            </div>
+            <div id="skillsCountBadge" class="badge matrix">Loading skills...</div>
+          </div>
+        </div>
+
+        <!-- Skills Cards Grid -->
+        <div id="skillsCardsContainer" class="skills-grid">
+          <div class="placeholder-text">Loading skills registry...</div>
+        </div>
+
+        <!-- Learn New Skill Modal -->
+        <div id="learnSkillModal" class="modal-overlay hidden">
+          <div class="modal-dialog">
+            <div class="modal-header">
+              <h3>🧠 Self-Learn New Skill</h3>
+              <button id="closeLearnModalBtn" class="modal-close-btn">&times;</button>
+            </div>
+            <form id="learnSkillForm">
+              <div class="form-group">
+                <label for="skillNameInput">Skill Name</label>
+                <input type="text" id="skillNameInput" placeholder="e.g. Database Migrations Safety" required />
+              </div>
+              <div class="form-group">
+                <label for="skillDescInput">Short Description</label>
+                <input type="text" id="skillDescInput" placeholder="Brief summary of when and how to apply this skill" />
+              </div>
+              <div class="form-group">
+                <label for="skillTagsInput">Tags (Comma-separated)</label>
+                <input type="text" id="skillTagsInput" placeholder="e.g. database, backend, migration" />
+              </div>
+              <div class="form-group">
+                <label for="skillInstructionsInput">Instructions & Guidelines (Markdown)</label>
+                <textarea id="skillInstructionsInput" rows="6" placeholder="1. Always test in sandbox first...&#10;2. Verify backward compatibility...&#10;3. Check index performance..." required></textarea>
+              </div>
+              <div class="modal-actions">
+                <button type="button" id="cancelLearnBtn" class="btn secondary-btn">Cancel</button>
+                <button type="submit" id="saveSkillBtn" class="btn primary-btn">Save & Learn Skill</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- View Skill Detail Modal -->
+        <div id="viewSkillModal" class="modal-overlay hidden">
+          <div class="modal-dialog">
+            <div class="modal-header">
+              <h3 id="viewSkillTitle">Skill Detail</h3>
+              <button id="closeViewSkillModalBtn" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="skill-modal-meta">
+                <span id="viewSkillSource" class="badge"></span>
+                <span id="viewSkillTags" class="skill-tag-list"></span>
+              </div>
+              <p id="viewSkillDesc" class="subtitle" style="margin: 0.75rem 0;"></p>
+              <h4>Instructions & Best Practices</h4>
+              <pre id="viewSkillInstructions" class="skill-instructions-box"></pre>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -16,6 +16,7 @@ import { LLMClient } from "../providers/llm-client.js";
 import { getConfigValue } from "../core/config.js";
 import { getAllProviders } from "../providers/providers-store.js";
 import { getSecret } from "../core/secrets.js";
+import { buildSkillsGuidanceContext } from "../skills/skills-manager.js";
 
 // Simple fallback plan when LLM is unavailable or fails.
 function fallbackPlan(taskDescription) {
@@ -57,6 +58,7 @@ export async function planTask(taskDescription) {
     apiKey
   });
 
+  const skillsContext = buildSkillsGuidanceContext(taskDescription);
   const prompt = `You are an AI planning assistant. Produce a JSON plan for the following task. Follow this schema exactly:
 ${JSON.stringify(
     {
@@ -77,7 +79,9 @@ ${JSON.stringify(
     },
     null,
     2
-  )}\nTask: ${taskDescription}`;
+  )}
+${skillsContext}
+Task: ${taskDescription}`;
 
   try {
     logger.info(`Planning task via ${providerId}/${model}`);

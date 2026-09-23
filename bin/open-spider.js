@@ -48,16 +48,24 @@ program.hook('preAction', (thisCommand) => {
 
 import { startInteractiveSession } from '../src/manager/session.js';
 
+const runSafe = (fn) => async (...args) => {
+  try {
+    await fn(...args);
+  } catch (err) {
+    console.error(formatError(err, program.opts().debug));
+    process.exit(1);
+  }
+};
+
 // Root action / Interactive REPL
-program
-  .action(async () => {
-    if (process.stdout.isTTY && !process.env.CI) {
-      await startInteractiveSession();
-    } else {
-      console.log(renderBanner({ version: pkg.version }));
-      console.log('Run "open-spider help" to see commands, or "open-spider setup" to configure.\n');
-    }
-  });
+program.action(runSafe(async () => {
+  if (process.stdout.isTTY && !process.env.CI) {
+    await startInteractiveSession();
+  } else {
+    console.log(renderBanner({ version: pkg.version }));
+    console.log('Run "open-spider help" to see commands, or "open-spider setup" to configure.\n');
+  }
+}));
 
 program
   .command('run [task]')
@@ -71,65 +79,30 @@ program
   .option('-y, --yes', 'Automatically approve plan without confirmation')
   .option('--json', 'Output results formatted as JSON')
   .option('--cwd <dir>', 'Working directory for task execution')
-  .action(async (task, options) => {
-    try {
-      await handleRunCommand(task, options);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleRunCommand));
 
 program
   .command('doctor')
   .description('Perform full system and worker health checks')
   .option('--deep', 'Run deep probe execution tests against workers')
   .option('--json', 'Output diagnostics in JSON format')
-  .action(async (options) => {
-    try {
-      await runDoctor(options);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(runDoctor));
 
 program
   .command('setup')
   .description('Run step-by-step or quick setup wizard')
   .option('-q, --quick', 'Run fast setup wizard in under 60 seconds')
-  .action(async (options) => {
-    try {
-      await handleSetupWizard(options);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleSetupWizard));
 
 program
   .command('agents [action] [target] [extra]')
   .description('Manage worker agent adapters (list | model | connect | integrate | enable | disable | test)')
-  .action(async (action = 'list', target = null, extra = null) => {
-    try {
-      await handleAgentsCommand(action, target, extra);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleAgentsCommand));
 
 program
   .command('providers [action] [arg1] [arg2]')
   .description('Manage LLM API providers (list | add | remove | test | use)')
-  .action(async (action, arg1, arg2) => {
-    try {
-      await handleProvidersCommand(action, arg1, arg2);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleProvidersCommand));
 
 program
   .command('models')
@@ -138,102 +111,61 @@ program
   .option('--free', 'Show free models only')
   .option('--paid', 'Show paid models only')
   .option('--refresh', 'Force refresh model cache from remote APIs')
-  .action(async (options) => {
-    try {
-      await handleModelsCommand(options);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleModelsCommand));
 
 program
   .command('mcp <action> [args...]')
   .description('Manage MCP servers and tools (add | add-git | list | remove | test | tools)')
-  .action(async (action = 'list', ...args) => {
-    try {
-      const { handleMcpCommand } = await import('../src/cli/cli-mcp.js');
-      await handleMcpCommand(action, ...args);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(async (action = 'list', ...args) => {
+    const { handleMcpCommand } = await import('../src/cli/cli-mcp.js');
+    await handleMcpCommand(action, ...args);
+  }));
 
 program
   .command('plugins [action] [args...]')
   .description('Manage Open-spider plugins (list | install | remove | enable | disable)')
-  .action(async (action = 'list', ...args) => {
-    try {
-      const { handlePluginsCommand } = await import('../src/cli/cli-plugins.js');
-      await handlePluginsCommand(action, ...args);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(async (action = 'list', ...args) => {
+    const { handlePluginsCommand } = await import('../src/cli/cli-plugins.js');
+    await handlePluginsCommand(action, ...args);
+  }));
+
+program
+  .command('skills [action] [arg1] [arg2] [arg3]')
+  .description('Manage skills and self-learning from Hermes (list | import-hermes | learn | show | search)')
+  .action(runSafe(async (action = 'list', arg1 = null, arg2 = null, arg3 = null) => {
+    const { handleSkillsCommand } = await import('../src/cli/cli-skills.js');
+    await handleSkillsCommand(action, arg1, arg2, arg3);
+  }));
 
 program
   .command('runs [action] [runId]')
   .description('Manage execution history and resume runs (list | show | resume)')
-  .action(async (action = 'list', runId = null) => {
-    try {
-      await handleRunsCommand(action, runId);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleRunsCommand));
 
 program
   .command('serve')
   .description('Start web UI dashboard and REST API server')
-  .action(async () => {
-    try {
-      await handleServeCommand();
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleServeCommand));
 
 program
   .command('mcp-serve')
   .description('Expose Open-spider itself as an MCP server over stdio')
-  .action(async () => {
-    try {
-      const { startMcpStdioServer } = await import('../src/mcp/server.js');
-      await startMcpStdioServer();
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(async () => {
+    const { startMcpStdioServer } = await import('../src/mcp/server.js');
+    await startMcpStdioServer();
+  }));
 
 program
   .command('config [action] [key] [value]')
   .description('View and modify configuration settings (get | set | path)')
-  .action((action = 'get', key = null, value = null) => {
-    try {
-      handleConfigCommand(action, key, value);
-    } catch (err) {
-      console.error(formatError(err, program.opts().debug));
-      process.exit(1);
-    }
-  });
+  .action(runSafe(handleConfigCommand));
 
-// Handle custom help command
 program
   .command('help [command]')
   .description('Display detailed help and usage examples')
-  .action((cmdName) => {
-    displayHelp(cmdName);
-  });
+  .action((cmdName) => { displayHelp(cmdName); });
 
-// Override default help output to use custom displayHelp
 program.helpInformation = () => '';
-program.on('--help', () => {
-  displayHelp();
-});
+program.on('--help', () => { displayHelp(); });
 
 program.parse(process.argv);

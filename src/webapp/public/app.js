@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (tabId === 'dashboard') loadMiniWorkers();
     if (tabId === 'fleet') loadFleet();
+    if (tabId === 'skills') loadSkills();
     if (tabId === 'settings') loadSettings();
     if (tabId === 'history') loadHistory();
     if (tabId === 'ecosystem') loadEcosystem();
@@ -581,6 +582,202 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       grid.innerHTML = `<div class="placeholder-text">Error loading health: ${escapeHtml(err.message)}</div>`;
     }
+  }
+
+  // Skills & Self-Learning System
+  let cachedSkills = [];
+
+  async function loadSkills() {
+    const container = document.getElementById('skillsCardsContainer');
+    const badge = document.getElementById('skillsCountBadge');
+    if (!container) return;
+
+    try {
+      const res = await fetch('/api/skills');
+      const data = await res.json();
+      cachedSkills = data.skills || [];
+      renderSkills(cachedSkills);
+    } catch (err) {
+      container.innerHTML = `<div class="placeholder-text">Failed to load skills: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  function renderSkills(skillsList) {
+    const container = document.getElementById('skillsCardsContainer');
+    const badge = document.getElementById('skillsCountBadge');
+    if (!container) return;
+
+    if (badge) {
+      badge.textContent = `${skillsList.length} Active Skills`;
+    }
+
+    if (skillsList.length === 0) {
+      container.innerHTML = `<div class="placeholder-text">No skills found matching your search.</div>`;
+      return;
+    }
+
+    container.innerHTML = skillsList.map((s) => {
+      let sourceBadgeClass = 'matrix';
+      let sourceLabel = 'Builtin';
+      if (s.source === 'hermes') {
+        sourceBadgeClass = 'cyan';
+        sourceLabel = 'Hermes Replicated';
+      } else if (s.source === 'self-learned') {
+        sourceBadgeClass = 'success';
+        sourceLabel = 'Self-Learned';
+      }
+
+      const tagsHtml = (s.tags || []).map((t) => `<span class="skill-tag">#${escapeHtml(t)}</span>`).join('');
+
+      return `
+        <div class="skill-card">
+          <div class="skill-card-header">
+            <h3 class="skill-title">${escapeHtml(s.name)}</h3>
+            <span class="badge ${sourceBadgeClass}">${sourceLabel}</span>
+          </div>
+          <p class="skill-desc">${escapeHtml(s.description || 'No description provided')}</p>
+          <div class="skill-tags-row">${tagsHtml}</div>
+          <div class="skill-card-actions">
+            <button class="btn small-btn view-skill-btn" data-id="${escapeHtml(s.id)}">📖 View Instructions</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach click listeners to view skill detail buttons
+    document.querySelectorAll('.view-skill-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const skill = cachedSkills.find((s) => s.id === id);
+        if (skill) openViewSkillModal(skill);
+      });
+    });
+  }
+
+  // Filter skills by search query
+  const skillsSearchInput = document.getElementById('skillsSearchInput');
+  if (skillsSearchInput) {
+    skillsSearchInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) {
+        renderSkills(cachedSkills);
+        return;
+      }
+      const filtered = cachedSkills.filter((s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.description && s.description.toLowerCase().includes(q)) ||
+        (s.tags && s.tags.some((t) => t.toLowerCase().includes(q))) ||
+        (s.instructions && s.instructions.toLowerCase().includes(q))
+      );
+      renderSkills(filtered);
+    });
+  }
+
+  // Import Hermes Skills
+  const importHermesBtn = document.getElementById('importHermesBtn');
+  if (importHermesBtn) {
+    importHermesBtn.addEventListener('click', async () => {
+      try {
+        importHermesBtn.disabled = true;
+        importHermesBtn.innerHTML = '⏳ Importing...';
+        const res = await fetch('/api/skills/import-hermes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Successfully imported ${data.count || 0} skill(s) from Hermes!`);
+          loadSkills();
+        } else {
+          showToast(data.error || 'Failed to import Hermes skills', true);
+        }
+      } catch (err) {
+        showToast(`Import error: ${err.message}`, true);
+      } finally {
+        importHermesBtn.disabled = false;
+        importHermesBtn.innerHTML = '📥 Import Hermes Skills';
+      }
+    });
+  }
+
+  // Learn Skill Modal
+  const learnModal = document.getElementById('learnSkillModal');
+  const openLearnModalBtn = document.getElementById('openLearnModalBtn');
+  const closeLearnModalBtn = document.getElementById('closeLearnModalBtn');
+  const cancelLearnBtn = document.getElementById('cancelLearnBtn');
+  const learnSkillForm = document.getElementById('learnSkillForm');
+
+  if (openLearnModalBtn) {
+    openLearnModalBtn.addEventListener('click', () => {
+      if (learnModal) learnModal.classList.remove('hidden');
+    });
+  }
+
+  function closeLearnModal() {
+    if (learnModal) learnModal.classList.add('hidden');
+    if (learnSkillForm) learnSkillForm.reset();
+  }
+
+  if (closeLearnModalBtn) closeLearnModalBtn.addEventListener('click', closeLearnModal);
+  if (cancelLearnBtn) cancelLearnBtn.addEventListener('click', closeLearnModal);
+
+  if (learnSkillForm) {
+    learnSkillForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('skillNameInput').value.trim();
+      const description = document.getElementById('skillDescInput').value.trim();
+      const tagsStr = document.getElementById('skillTagsInput').value.trim();
+      const instructions = document.getElementById('skillInstructionsInput').value.trim();
+
+      if (!name || !instructions) return;
+
+      const tags = tagsStr ? tagsStr.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean) : ['learned'];
+
+      try {
+        const res = await fetch('/api/skills/learn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description, tags, instructions, learnedFrom: 'self-learned' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Skill [${name}] learned and indexed!`);
+          closeLearnModal();
+          loadSkills();
+        } else {
+          showToast(data.error || 'Failed to record skill', true);
+        }
+      } catch (err) {
+        showToast(`Error: ${err.message}`, true);
+      }
+    });
+  }
+
+  // View Skill Details Modal
+  const viewModal = document.getElementById('viewSkillModal');
+  const closeViewModalBtn = document.getElementById('closeViewSkillModalBtn');
+
+  function openViewSkillModal(skill) {
+    if (!viewModal) return;
+    document.getElementById('viewSkillTitle').textContent = skill.name;
+    const srcElem = document.getElementById('viewSkillSource');
+    srcElem.textContent = skill.source || 'builtin';
+    srcElem.className = `badge ${skill.source === 'hermes' ? 'cyan' : (skill.source === 'self-learned' ? 'success' : 'matrix')}`;
+
+    const tagsElem = document.getElementById('viewSkillTags');
+    tagsElem.innerHTML = (skill.tags || []).map((t) => `<span class="skill-tag">#${escapeHtml(t)}</span>`).join(' ');
+
+    document.getElementById('viewSkillDesc').textContent = skill.description || '';
+    document.getElementById('viewSkillInstructions').textContent = skill.instructions || 'No instructions';
+
+    viewModal.classList.remove('hidden');
+  }
+
+  if (closeViewModalBtn) {
+    closeViewModalBtn.addEventListener('click', () => {
+      if (viewModal) viewModal.classList.add('hidden');
+    });
   }
 
   // Refresh buttons
