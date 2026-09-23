@@ -1,6 +1,6 @@
 /**
  * @file src/cli/doctor.js
- * Open-spider environment and health diagnostics.
+ * Open-spider environment, storage, security, provider, and worker health diagnostics.
  */
 
 import { execSync } from 'node:child_process';
@@ -9,8 +9,21 @@ import { getDataDir, getSecretsFile, ensureDataDirs } from '../core/paths.js';
 import { checkSecretsPermissions, getSecret } from '../core/secrets.js';
 import { getConfigValue } from '../core/config.js';
 import { getAllProviders } from '../providers/providers-store.js';
+import { CodexAdapter } from '../agents/codex.js';
+import { OpencodeAdapter } from '../agents/opencode.js';
+import { HermesAdapter } from '../agents/hermes.js';
+import { AntigravityAdapter } from '../agents/antigravity.js';
+import { CustomAdapter } from '../agents/custom.js';
 import { renderTable } from '../ui/table.js';
 import { theme } from '../ui/theme.js';
+
+const adapters = {
+  codex: CodexAdapter,
+  opencode: OpencodeAdapter,
+  hermes: HermesAdapter,
+  antigravity: AntigravityAdapter,
+  custom: CustomAdapter,
+};
 
 export async function runDoctor(options = {}) {
   ensureDataDirs();
@@ -143,6 +156,29 @@ export async function runDoctor(options = {}) {
         name: `${mgrProviderId} (${mgrModel})`,
         details: 'No API key set',
         hint: `Run: open-spider providers add (or set ${providerDef.envKey || 'API key'})`
+      });
+    }
+  }
+
+  // 7. Worker Adapters Detection & Deep Probing
+  for (const [id, Adapter] of Object.entries(adapters)) {
+    try {
+      const detected = await Adapter.detect();
+      const version = detected ? await Adapter.version() : 'Not detected';
+      checks.push({
+        status: detected ? 'OK' : 'WARN',
+        category: 'Workers',
+        name: id,
+        details: detected ? `Detected (${version})` : 'CLI binary not in PATH',
+        hint: detected ? '' : `Install or connect ${id} CLI`
+      });
+    } catch (err) {
+      checks.push({
+        status: 'WARN',
+        category: 'Workers',
+        name: id,
+        details: `Detection error: ${err.message}`,
+        hint: `Verify installation of ${id}`
       });
     }
   }

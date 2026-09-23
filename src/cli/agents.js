@@ -5,12 +5,11 @@
  * Commands:
  *   open-spider agents list            – Detect available workers and show health status.
  *   open-spider agents connect         – Run detect on all adapters and record health.
- *   open-spider agents test <worker>   – Run a trivial fake task through the adapter to verify.
+ *   open-spider agents test <worker>   – Run a task through the adapter to verify.
  *   open-spider agents enable <worker>  – Mark worker as healthy in health store.
  *   open-spider agents disable <worker> – Mark worker as unavailable.
- *   open-spider agents integrate       – Generate diff for integrating a worker (stub).
+ *   open-spider agents integrate       – Show integration config snippet for other agent CLIs.
  */
-import { Command } from "commander";
 import { logger } from "../core/logger.js";
 import { getHealthReport, recordSuccess, recordFailure, isWorkerAvailable } from "../agents/health.js";
 import { CodexAdapter } from "../agents/codex.js";
@@ -18,7 +17,8 @@ import { OpencodeAdapter } from "../agents/opencode.js";
 import { HermesAdapter } from "../agents/hermes.js";
 import { AntigravityAdapter } from "../agents/antigravity.js";
 import { CustomAdapter } from "../agents/custom.js";
-import { table } from "../ui/table.js";
+import { renderTable } from "../ui/table.js";
+import { theme } from "../ui/theme.js";
 
 const adapters = {
   codex: CodexAdapter,
@@ -28,9 +28,6 @@ const adapters = {
   custom: CustomAdapter,
 };
 
-/**
- * Detect all adapters and return a map of workerId -> {detected: boolean, version: string}.
- */
 async function detectAll() {
   const results = {};
   for (const [id, Adapter] of Object.entries(adapters)) {
@@ -38,90 +35,117 @@ async function detectAll() {
       const detected = await Adapter.detect();
       const version = detected ? await Adapter.version() : "N/A";
       results[id] = { detected, version };
-    } catch (e) {
+    } catch {
       results[id] = { detected: false, version: "error" };
     }
   }
   return results;
 }
 
-export function registerAgentsCommand(program) {
-  const cmd = program.command("agents").description("Manage worker adapters");
-
-  cmd.command("list").description("List detected workers and health status").action(async () => {
-    const detection = await detectAll();
-    const health = await getHealthReport();
-    const rows = [];
-    for (const [id, info] of Object.entries(detection)) {
-      const healthRec = health[id] || { status: "unknown" };
-      rows.push({
-        Worker: id,
-        Detected: info.detected ? "yes" : "no",
-        Version: info.version,
-        Health: healthRec.status,
-      });
-    }
-    logger.info(table(rows, { columns: ["Worker", "Detected", "Version", "Health"] }));
-  });
-
-  cmd.command("connect").description("Detect workers and record health as healthy").action(async () => {
-    const detection = await detectAll();
-    for (const [id, info] of Object.entries(detection)) {
-      if (info.detected) {
-        await recordSuccess(id);
-        logger.ok(`Worker ${id} detected (${info.version}) – marked healthy`);
-      } else {
-        await recordFailure(id, null);
-        logger.warn(`Worker ${id} not detected`);
+export async function handleAgentsCommand(action = 'list', target = null) {
+  switch (action) {
+    case 'list': {
+      const detection = await detectAll();
+      const health = await getHealthReport();
+      const headers = ['Worker', 'Detected', 'Version', 'Health'];
+      const rows = [];
+      for (const [id, info] of Object.entries(detection)) {
+        const healthRec = health[id] || { status: 'healthy' };
+        rows.push([
+          theme.cyan(id),
+          info.detected ? theme.okText('yes') : theme.dim('no'),
+          info.version || 'N/A',
+          healthRec.status === 'healthy' ? theme.okText(healthRec.status) : theme.warnText(healthRec.status)
+        ]);
       }
+      console.log(theme.matrix('\n=== OPEN-SPIDER WORKER AGENTS ===\n'));
+      console.log(renderTable(headers, rows));
+      console.log('');
+      break;
     }
-  });
 
-  cmd
-    .command("test <worker>")
-    .description("Run a trivial fake task through the specified worker to verify execution and error classification")
-    .action(async (worker) => {
-      const Adapter = adapters[worker];
-      if (!Adapter) {
-        logger.error(`Unknown worker ${worker}`);
+    case 'connect': {
+      const detection = await detectAll();
+      for (const [id, info] of Object.entries(detection)) {
+        if (info.detected) {
+          await recordSuccess(id);
+          logger.ok(`Worker ${theme.highlight(id)} detected (${info.version}) – marked healthy`);
+        } else {
+          await recordFailure(id, null);
+          logger.warn(`Worker ${theme.highlight(id)} not detected on system PATH`);
+        }
+      }
+      break;
+    }
+
+    case 'test': {
+      if (!target) {
+        logger.error('Usage: open-spider agents test <worker>');
         return;
       }
-      // Create a temporary prompt file.
-      const { promises: fs } = await import("node:fs");
-      const { tmpdir } = await import("node:os");
-      const { join } = await import("node:path");
-      const tmpPath = join(tmpdir(), `open-spider-${Date.now()}-prompt.txt`);
-      await fs.writeFile(tmpPath, "Echo test", { mode: 0o600 });
-      const task = { id: "test", title: "Test task", promptFile: tmpPath };
+      const Adapter = adapters[target];
+      if (!Adapter) {
+        logger.fail(`Unknown worker "${target}". Available: ${Object.keys(adapters).join(', ')}`);
+        return;
+      }
+      const { promises: fs } = await import('node:fs');
+      const { tmpdir } = await import('node:os');
+      const { join } = await import('node:path');
+      const tmpPath = join(tmpdir(), `open-spider-${Date.now()}-test.txt`);
+      await fs.writeFile(tmpPath, 'Echo test', { mode: 0o600 });
+      const task = { id: 'test-1', title: 'Test probe', promptFile: tmpPath };
       const adapter = new Adapter();
+      logger.info(`Testing worker adapter: ${target}...`);
       const result = await adapter.run(task);
       if (result.ok) {
-        logger.ok(`Worker ${worker} succeeded. Output:\n${result.output}`);
-        await recordSuccess(worker);
+        logger.ok(`Worker ${target} succeeded.`);
+        await recordSuccess(target);
       } else {
-        logger.fail(`Worker ${worker} failed with ${result.errorClass?.name || "Error"}`);
-        await recordFailure(worker, result.errorClass);
+        logger.fail(`Worker ${target} failed with ${result.errorClass?.name || 'Error'}`);
+        await recordFailure(target, result.errorClass);
       }
-    });
+      break;
+    }
 
-  cmd
-    .command("enable <worker>")
-    .description("Mark a worker as healthy in the health store")
-    .action(async (worker) => {
-      await recordSuccess(worker);
-      logger.ok(`Worker ${worker} marked healthy`);
-    });
+    case 'enable': {
+      if (!target) {
+        logger.error('Usage: open-spider agents enable <worker>');
+        return;
+      }
+      await recordSuccess(target);
+      logger.ok(`Worker ${theme.highlight(target)} enabled and marked healthy`);
+      break;
+    }
 
-  cmd
-    .command("disable <worker>")
-    .description("Mark a worker as unavailable in the health store")
-    .action(async (worker) => {
-      await recordFailure(worker, new Error("manual disable"));
-      logger.warn(`Worker ${worker} marked unavailable`);
-    });
+    case 'disable': {
+      if (!target) {
+        logger.error('Usage: open-spider agents disable <worker>');
+        return;
+      }
+      await recordFailure(target, new Error('manually disabled'));
+      logger.warn(`Worker ${theme.highlight(target)} marked unavailable`);
+      break;
+    }
 
-  // Stub for integrate – in real implementation this would generate a diff.
-  cmd.command("integrate").description("Generate diff for integrating a worker (stub)").action(() => {
-    logger.info("Integrate command is not yet implemented – placeholder.");
-  });
+    case 'integrate': {
+      console.log(theme.matrix('\n=== OPEN-SPIDER INTEGRATION GUIDE ===\n'));
+      console.log('To allow other coding agents (e.g. OpenCode, Codex, Hermes, Claude) to use Open-spider as an MCP server:\n');
+      console.log(theme.cyan('1. Expose Open-Spider via MCP (stdio):'));
+      console.log('   Add the following snippet to your agent\'s MCP configuration (e.g. opencode.json or claude_desktop_config.json):\n');
+      console.log(JSON.stringify({
+        mcpServers: {
+          "open-spider": {
+            command: "open-spider",
+            args: ["mcp-serve"]
+          }
+        }
+      }, null, 2));
+      console.log(`\n${theme.cyan('2. Invoke Open-Spider directly from CLI tools:')}`);
+      console.log('   $ open-spider run "Decompose and execute goal" --strategy free-first\n');
+      break;
+    }
+
+    default:
+      logger.warn(`Unknown agents action "${action}". Available: list, connect, test, enable, disable, integrate`);
+  }
 }

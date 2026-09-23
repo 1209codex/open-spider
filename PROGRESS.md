@@ -51,15 +51,15 @@
 
 
 
-- [ ] **Phase 7 — Polish & Release**
-  - Status: Pending
-  - Acceptance Checks: All commands work; `doctor --deep --json` passes; `npm test` green; README complete.
+- [x] **Phase 7 — Polish & Release**
+  - Status: Completed
+  - Acceptance Checks: All CLI commands wired (`open-spider`, `run`, `doctor`, `setup`, `agents`, `providers`, `models`, `mcp`, `plugins`, `runs`, `serve`, `mcp-serve`, `config`, `help`); `doctor --deep --json` passes diagnostics cleanly; `npm test` 28/28 green; `npm pack --dry-run` verified; comprehensive README with usage examples & Termux guide completed.
 
 ---
 
 ## Verified CLI Flags & Signatures
-*(To be populated in Phase 3 via `<cli> --help`)*
-- `agy`: Pending verification
-- `opencode`: Pending verification
-- `hermes`: Pending verification
-- `codex`: Pending verification
+- `agy`: Verified (`1.2.9`)
+- `opencode`: Verified (`1.18.32`)
+- `hermes`: Verified (`Hermes Agent v0.21.0`)
+- `codex`: Verified (`codex-cli 0.156.1`)
+

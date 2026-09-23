@@ -13,11 +13,16 @@ import { displayHelp } from '../src/cli/help.js';
 import { runDoctor } from '../src/cli/doctor.js';
 import { handleProvidersCommand } from '../src/cli/providers.js';
 import { handleModelsCommand } from '../src/cli/models.js';
+import { handleAgentsCommand } from '../src/cli/agents.js';
+import { handleRunsCommand } from '../src/cli/runs.js';
+import { handleConfigCommand } from '../src/cli/config.js';
 import { renderBanner } from '../src/ui/banner.js';
 import { logger } from '../src/core/logger.js';
-import { formatError } from '../src/core/errors.js'; import { handleSetupWizard } from '../src/cli/setup.js';
+import { formatError } from '../src/core/errors.js';
+import { handleSetupWizard } from '../src/cli/setup.js';
 import { handleRunCommand } from "../src/cli/run.js";
 import { handleServeCommand } from "../src/cli/serve.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -94,14 +99,18 @@ program
       console.error(formatError(err, program.opts().debug));
       process.exit(1);
     }
-    logger.info('Setup wizard invocation...');
   });
 
 program
-  .command('agents [action]')
-  .description('Manage worker agent adapters (list | connect | integrate | enable | disable | test | remove | profile)')
-  .action((action) => {
-    logger.info(`Agents command: ${action || 'list'}`);
+  .command('agents [action] [target]')
+  .description('Manage worker agent adapters (list | connect | integrate | enable | disable | test)')
+  .action(async (action = 'list', target = null) => {
+    try {
+      await handleAgentsCommand(action, target);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
@@ -146,7 +155,7 @@ program
   });
 
 program
-  .command('plugins [action]')
+  .command('plugins [action] [args...]')
   .description('Manage Open-spider plugins (list | install | remove | enable | disable)')
   .action(async (action = 'list', ...args) => {
     try {
@@ -159,30 +168,52 @@ program
   });
 
 program
-  .command('serve')
-  .description('Start minimal web UI for Open‑spider')
-  .action(() => {
+  .command('runs [action] [runId]')
+  .description('Manage execution history and resume runs (list | show | resume)')
+  .action(async (action = 'list', runId = null) => {
     try {
-      handleServeCommand();
+      await handleRunsCommand(action, runId);
     } catch (err) {
       console.error(formatError(err, program.opts().debug));
       process.exit(1);
     }
   });
 
+program
+  .command('serve')
+  .description('Start web UI dashboard and REST API server')
+  .action(async () => {
+    try {
+      await handleServeCommand();
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
+  });
 
 program
   .command('mcp-serve')
   .description('Expose Open-spider itself as an MCP server over stdio')
-  .action(() => {
-    logger.info('MCP-serve mode initialized.');
+  .action(async () => {
+    try {
+      const { startMcpStdioServer } = await import('../src/mcp/server.js');
+      await startMcpStdioServer();
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 program
   .command('config [action] [key] [value]')
   .description('View and modify configuration settings (get | set | path)')
-  .action((action, key, value) => {
-    logger.info(`Config command: ${action || 'get'} ${key || ''} ${value || ''}`);
+  .action((action = 'get', key = null, value = null) => {
+    try {
+      handleConfigCommand(action, key, value);
+    } catch (err) {
+      console.error(formatError(err, program.opts().debug));
+      process.exit(1);
+    }
   });
 
 // Handle custom help command

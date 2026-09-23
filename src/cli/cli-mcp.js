@@ -6,48 +6,73 @@
 import { logger } from '../core/logger.js';
 import { addMcpServer, removeMcpServer, listMcpServers, loadMcpTools } from '../mcp/mcp-manager.js';
 import { getServerTools } from '../mcp/tools-loader.js';
+import { renderTable } from '../ui/table.js';
+import { theme } from '../ui/theme.js';
 
 export async function handleMcpCommand(action = 'list', ...args) {
   switch (action) {
-    case 'add':
+    case 'add': {
       if (!args[0]) {
-        logger.error('MCP add requires a URL argument');
+        logger.error('Usage: open-spider mcp add <url>');
         return;
       }
       const added = addMcpServer(args[0]);
-      logger.info(`Added MCP server ${added.id} → ${added.url}`);
+      logger.ok(`Added MCP server ${theme.highlight(added.id)} -> ${added.url}`);
       break;
-    case 'remove':
+    }
+
+    case 'add-git': {
       if (!args[0]) {
-        logger.error('MCP remove requires an ID argument');
+        logger.error('Usage: open-spider mcp add-git <owner/repo>');
+        return;
+      }
+      const repo = args[0].replace(/^https:\/\/github.com\//, '').replace(/\.git$/, '');
+      const gitMcpUrl = `git+https://github.com/${repo}.git`;
+      const added = addMcpServer(gitMcpUrl);
+      logger.ok(`Added Git MCP server ${theme.highlight(added.id)} -> ${added.url}`);
+      break;
+    }
+
+    case 'remove': {
+      if (!args[0]) {
+        logger.error('Usage: open-spider mcp remove <id>');
         return;
       }
       removeMcpServer(args[0]);
-      logger.info(`Removed MCP server ${args[0]}`);
+      logger.ok(`Removed MCP server ${args[0]}`);
       break;
-    case 'list':
+    }
+
+    case 'list': {
       const servers = listMcpServers();
       if (servers.length === 0) {
-        logger.info('No MCP servers configured');
-      } else {
-        logger.info('Configured MCP servers:');
-        servers.forEach((s) => logger.info(`- ${s.id}: ${s.url}`));
+        logger.info('No MCP servers configured. Add one with: open-spider mcp add <url>');
+        return;
       }
+      const headers = ['Server ID', 'Endpoint / URL'];
+      const rows = servers.map((s) => [theme.cyan(s.id), s.url]);
+      console.log(theme.matrix('\n=== CONFIGURED MCP SERVERS ===\n'));
+      console.log(renderTable(headers, rows));
+      console.log('');
       break;
-    case 'tools':
+    }
+
+    case 'tools': {
       if (!args[0]) {
-        logger.error('MCP tools requires a server ID');
+        logger.error('Usage: open-spider mcp tools <serverId>');
         return;
       }
       const tools = getServerTools(args[0]);
       if (tools.length === 0) {
-        logger.info(`No tools found for server ${args[0]}`);
+        logger.info(`No tools registered or active for server ${args[0]}`);
       } else {
         logger.info(`Tools for server ${args[0]}:`);
         tools.forEach((t) => logger.info(`- ${t.name}`));
       }
       break;
+    }
+
     default:
-      logger.warn(`Unknown MCP action "${action}". Available: add, remove, list, tools`);
+      logger.warn(`Unknown MCP action "${action}". Available: add, add-git, list, remove, tools`);
   }
 }
