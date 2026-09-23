@@ -1,8 +1,8 @@
 // src/webapp/public/app.js
-
 /**
  * Open-Spider Web UI Client
- * Handles SPA navigation, real-time log polling, task dispatch, history, and ecosystem views.
+ * Handles SPA navigation, real-time worker fleet tracking, model selection,
+ * task dispatch, runs history, and ecosystem views.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,19 +10,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const navBtns = document.querySelectorAll('.nav-btn');
   const tabPanes = document.querySelectorAll('.tab-pane');
 
+  function switchTab(tabId) {
+    navBtns.forEach((b) => b.classList.remove('active'));
+    tabPanes.forEach((p) => p.classList.remove('active'));
+
+    const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const targetPane = document.getElementById(`tab-${tabId}`);
+    if (targetPane) targetPane.classList.add('active');
+
+    if (tabId === 'dashboard') loadMiniWorkers();
+    if (tabId === 'fleet') loadFleet();
+    if (tabId === 'settings') loadSettings();
+    if (tabId === 'history') loadHistory();
+    if (tabId === 'ecosystem') loadEcosystem();
+    if (tabId === 'health') loadHealth();
+  }
+
   navBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const tabId = btn.getAttribute('data-tab');
-      navBtns.forEach((b) => b.classList.remove('active'));
-      tabPanes.forEach((p) => p.classList.remove('active'));
-
-      btn.classList.add('active');
-      const targetPane = document.getElementById(`tab-${tabId}`);
-      if (targetPane) targetPane.classList.add('active');
-
-      if (tabId === 'history') loadHistory();
-      if (tabId === 'ecosystem') loadEcosystem();
-      if (tabId === 'health') loadHealth();
+      switchTab(tabId);
     });
   });
 
@@ -32,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const strategySelect = document.getElementById('strategySelect');
   const workerPin = document.getElementById('workerPin');
   const submitBtn = document.getElementById('submitBtn');
-  const quickStatus = document.getElementById('quickStatus') || document.getElementById('quick-status');
+  const quickStatus = document.getElementById('quick-status');
 
   const executionSection = document.getElementById('executionSection');
   const execRunId = document.getElementById('execRunId');
@@ -55,15 +64,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!task) return;
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="btn-icon">⏳</span> Running...';
-    if (quickStatus) quickStatus.textContent = 'Executing task...';
+    submitBtn.innerHTML = '<span class="btn-icon">⏳</span> Orchestrating...';
+    if (quickStatus) quickStatus.textContent = 'Executing company workflow...';
 
     executionSection.classList.remove('hidden');
     execStatusBadge.textContent = 'Running';
-    execStatusBadge.className = 'badge matrix';
-    planContainer.innerHTML = '<div class="placeholder-text">Planning and decomposing goal...</div>';
-    summaryReport.innerHTML = '<div class="placeholder-text">Waiting for worker execution...</div>';
-    logStream.textContent = 'Starting manager run...\n';
+    execStatusBadge.className = 'badge working';
+    planContainer.innerHTML = '<div class="placeholder-text">Decomposing goal and coordinating workers...</div>';
+    summaryReport.innerHTML = '<div class="placeholder-text">Waiting for worker execution and synthesis...</div>';
+    logStream.textContent = 'Starting multi-agent manager run...\n';
+
+    // Poll live worker status during execution
+    const livePoll = setInterval(() => {
+      loadMiniWorkers();
+    }, 2000);
 
     try {
       const payload = {
@@ -81,12 +95,13 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
+      clearInterval(livePoll);
+      loadMiniWorkers();
 
       if (!res.ok) {
         throw new Error(data.error || 'Execution failed');
       }
 
-      // Populate Run UI
       execRunId.textContent = data.runId || 'N/A';
       execStatusBadge.textContent = 'Completed';
       execStatusBadge.className = 'badge success';
@@ -100,20 +115,21 @@ document.addEventListener('DOMContentLoaded', () => {
         summaryReport.textContent = data.report;
       }
 
-      // Fetch latest logs
       if (data.runId) {
         fetchLogs(data.runId);
       }
 
-      if (quickStatus) quickStatus.textContent = 'Task completed successfully';
+      if (quickStatus) quickStatus.textContent = 'Team task completed successfully';
     } catch (err) {
+      clearInterval(livePoll);
+      loadMiniWorkers();
       execStatusBadge.textContent = 'Failed';
       execStatusBadge.className = 'badge failed';
       summaryReport.textContent = `Error: ${err.message}`;
       if (quickStatus) quickStatus.textContent = `Error: ${err.message}`;
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span class="btn-icon">🚀</span> Dispatch Task';
+      submitBtn.innerHTML = '<span class="btn-icon">🚀</span> Dispatch to Team';
     }
   });
 
@@ -126,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="task-item">
         <div class="task-item-header">
           <span class="task-title">${escapeHtml(t.title || t.id)}</span>
-          <span class="task-worker-tag">${escapeHtml(t.suggested_worker || t.worker || 'auto')}</span>
+          <span class="task-worker-tag">${escapeHtml(t.worker || t.suggested_worker || 'auto')}</span>
         </div>
         <div class="task-desc">${escapeHtml(t.instructions || '')}</div>
       </div>
@@ -141,9 +157,219 @@ document.addEventListener('DOMContentLoaded', () => {
         logStream.textContent = text;
         logStream.scrollTop = logStream.scrollHeight;
       }
-    } catch {
-      // Ignore
+    } catch {}
+  }
+
+  // Mini Workers overview on Dashboard
+  async function loadMiniWorkers() {
+    const grid = document.getElementById('miniWorkersGrid');
+    if (!grid) return;
+    try {
+      const res = await fetch('/api/workers');
+      const data = await res.json();
+      const workers = data.workers || [];
+
+      const workingCount = workers.filter((w) => w.status === 'working').length;
+      const summaryElem = document.getElementById('fleetStatusSummary');
+      if (summaryElem) {
+        summaryElem.textContent = workingCount > 0 ? `${workingCount} Worker(s) Active` : 'All Workers Ready (Idle)';
+      }
+
+      grid.innerHTML = workers.map((w) => {
+        let statusClass = w.status === 'working' ? 'working' : (w.status === 'disabled' ? 'disabled' : (w.status === 'limited' ? 'limited' : 'idle'));
+        let statusLabel = w.status === 'working' ? '● Working' : (w.status === 'disabled' ? 'Disabled' : (w.status === 'limited' ? 'Limited' : '● Free / Idle'));
+        return `
+          <div class="mini-worker-card">
+            <div class="mini-worker-head">
+              <strong>${escapeHtml(w.name || w.id)}</strong>
+              <span class="status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="mini-worker-model">Model: ${escapeHtml(w.model || 'default')}</div>
+            ${w.currentTask ? `<div class="mini-worker-task">Task: ${escapeHtml(w.currentTask.taskTitle)}</div>` : `<div class="mini-worker-task">${escapeHtml(w.role || 'Ready')}</div>`}
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      grid.innerHTML = `<div class="placeholder-text">Unable to load worker status: ${escapeHtml(err.message)}</div>`;
     }
+  }
+
+  // Full Fleet View
+  async function loadFleet() {
+    const container = document.getElementById('fleetCardsContainer');
+    if (!container) return;
+    try {
+      const res = await fetch('/api/workers');
+      const data = await res.json();
+      const workers = data.workers || [];
+
+      container.innerHTML = workers.map((w) => {
+        let statusClass = w.status === 'working' ? 'working' : (w.status === 'disabled' ? 'disabled' : (w.status === 'limited' ? 'limited' : 'idle'));
+        let statusLabel = w.status === 'working' ? '● BUSY (WORKING)' : (w.status === 'disabled' ? 'DISABLED' : (w.status === 'limited' ? 'LIMITED (COOLDOWN)' : '● FREE (IDLE)'));
+
+        return `
+          <div class="fleet-card">
+            <div class="fleet-card-header">
+              <div>
+                <div class="fleet-card-title">${escapeHtml(w.name)}</div>
+                <div class="fleet-card-role">${escapeHtml(w.role)}</div>
+              </div>
+              <span class="status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+
+            <div class="fleet-card-desc">${escapeHtml(w.description || '')}</div>
+
+            ${w.currentTask ? `
+              <div class="fleet-active-box">
+                <strong>Current Task:</strong> ${escapeHtml(w.currentTask.taskTitle)}
+              </div>
+            ` : ''}
+
+            <div class="fleet-meta-row">
+              <span>Active Model:</span>
+              <span class="code-pill">${escapeHtml(w.model || 'default')}</span>
+            </div>
+
+            <div class="fleet-meta-row">
+              <span>CLI Detected:</span>
+              <span style="color: ${w.detected ? 'var(--accent-matrix)' : 'var(--text-dim)'}; font-weight: 600;">
+                ${w.detected ? `Yes (${escapeHtml(w.version)})` : 'Not on PATH'}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="placeholder-text">Failed to load fleet: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // Settings & Model Selection View
+  async function loadSettings() {
+    const workerList = document.getElementById('workerSettingsList');
+    try {
+      const [settingsRes, workersRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/workers')
+      ]);
+      const settingsData = await settingsRes.json();
+      const workersData = await workersRes.json();
+
+      const config = settingsData.config || {};
+      const workers = workersData.workers || [];
+
+      // Populate Manager Settings
+      const mgrProvInput = document.getElementById('cfgManagerProvider');
+      const mgrModelInput = document.getElementById('cfgManagerModel');
+      const concurrencyInput = document.getElementById('cfgConcurrency');
+      const failoverSelect = document.getElementById('cfgFailover');
+
+      if (mgrProvInput) mgrProvInput.value = config.manager?.provider || 'openrouter';
+      if (mgrModelInput) mgrModelInput.value = config.manager?.model || 'google/gemini-2.5-flash';
+      if (concurrencyInput) concurrencyInput.value = config.routing?.concurrency || 2;
+      if (failoverSelect) failoverSelect.value = config.routing?.failover || 'auto';
+
+      // Populate Worker Models & Toggles
+      if (workerList) {
+        workerList.innerHTML = workers.map((w) => {
+          const cfgWorker = config.workers?.[w.id] || {};
+          const currentModel = cfgWorker.model || w.model || '';
+          const isEnabled = cfgWorker.enabled !== false;
+
+          return `
+            <div class="settings-worker-row" data-worker-id="${escapeHtml(w.id)}">
+              <div class="settings-worker-info">
+                <strong>${escapeHtml(w.name)}</strong>
+                <span>${escapeHtml(w.role)}</span>
+              </div>
+              <div>
+                <input type="text" class="worker-model-input" value="${escapeHtml(currentModel)}" placeholder="e.g. ${escapeHtml(w.recommendedModels?.[0] || 'model-id')}" />
+              </div>
+              <div>
+                <label class="settings-toggle">
+                  <input type="checkbox" class="worker-enable-check" ${isEnabled ? 'checked' : ''} />
+                  <span>Enabled</span>
+                </label>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    } catch (err) {
+      if (workerList) workerList.innerHTML = `<div class="placeholder-text">Failed to load settings: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // Save Settings
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const workerRows = document.querySelectorAll('.settings-worker-row');
+      const workersConfig = {};
+
+      workerRows.forEach((row) => {
+        const workerId = row.getAttribute('data-worker-id');
+        const modelInput = row.querySelector('.worker-model-input');
+        const checkInput = row.querySelector('.worker-enable-check');
+        if (workerId) {
+          workersConfig[workerId] = {
+            model: modelInput ? modelInput.value.trim() : '',
+            enabled: checkInput ? checkInput.checked : true
+          };
+        }
+      });
+
+      const mgrProvInput = document.getElementById('cfgManagerProvider');
+      const mgrModelInput = document.getElementById('cfgManagerModel');
+      const concurrencyInput = document.getElementById('cfgConcurrency');
+      const failoverSelect = document.getElementById('cfgFailover');
+
+      const payload = {
+        manager: {
+          provider: mgrProvInput ? mgrProvInput.value.trim() : undefined,
+          model: mgrModelInput ? mgrModelInput.value.trim() : undefined
+        },
+        routing: {
+          concurrency: concurrencyInput ? parseInt(concurrencyInput.value, 10) : 2,
+          failover: failoverSelect ? failoverSelect.value : 'auto'
+        },
+        workers: workersConfig
+      };
+
+      try {
+        saveSettingsBtn.disabled = true;
+        saveSettingsBtn.textContent = 'Saving...';
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          showToast('Settings saved successfully!');
+          loadMiniWorkers();
+        } else {
+          showToast('Failed to save settings', true);
+        }
+      } catch (err) {
+        showToast(`Error: ${err.message}`, true);
+      } finally {
+        saveSettingsBtn.disabled = false;
+        saveSettingsBtn.textContent = '💾 Save Settings';
+      }
+    });
+  }
+
+  function showToast(msg, isError = false) {
+    const toast = document.getElementById('settingsToast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.style.background = isError ? 'var(--accent-fail)' : 'var(--accent-matrix)';
+    toast.classList.remove('hidden');
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3000);
   }
 
   // History loader
@@ -187,8 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) return;
       const data = await res.json();
       
-      // Switch to dashboard tab
-      document.querySelector('[data-tab="dashboard"]').click();
+      switchTab('dashboard');
       executionSection.classList.remove('hidden');
       execRunId.textContent = data.id;
       execStatusBadge.textContent = data.status || 'completed';
@@ -202,9 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         summaryReport.textContent = data.summary;
       }
       fetchLogs(runId);
-    } catch {
-      // Ignore
-    }
+    } catch {}
   }
 
   // Ecosystem loader
@@ -255,18 +478,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/health');
       const data = await res.json();
       const workerHealth = data.workerHealth || {};
-      const workers = ['codex', 'opencode', 'hermes', 'antigravity', 'custom'];
+      const workers = data.workers || [];
 
       grid.innerHTML = workers.map((w) => {
-        const info = workerHealth[w] || { status: 'healthy', lastChecked: null };
+        const info = workerHealth[w.id] || { status: 'healthy', lastChecked: null };
         const statusClass = `status-${info.status || 'healthy'}`;
         return `
           <div class="health-card">
             <div class="health-card-header">
-              <strong>${escapeHtml(w)}</strong>
+              <strong>${escapeHtml(w.name || w.id)}</strong>
               <div class="health-status-dot ${statusClass}"></div>
             </div>
-            <div class="subtitle" style="font-size: 0.8rem;">Status: ${escapeHtml(info.status || 'healthy')}</div>
+            <div class="subtitle" style="font-size: 0.8rem;">Health: ${escapeHtml(info.status || 'healthy')}</div>
+            <div class="subtitle" style="font-size: 0.8rem;">Model: ${escapeHtml(w.model || 'default')}</div>
             ${info.lastError ? `<div style="font-size: 0.75rem; color: var(--accent-fail); margin-top: 0.25rem;">Last error: ${escapeHtml(info.lastError)}</div>` : ''}
           </div>
         `;
@@ -279,6 +503,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Refresh buttons
   const refreshRunsBtn = document.getElementById('refreshRunsBtn');
   if (refreshRunsBtn) refreshRunsBtn.addEventListener('click', loadHistory);
+
+  const refreshFleetBtn = document.getElementById('refreshFleetBtn');
+  if (refreshFleetBtn) refreshFleetBtn.addEventListener('click', loadFleet);
+
+  const refreshWorkersMiniBtn = document.getElementById('refreshWorkersMiniBtn');
+  if (refreshWorkersMiniBtn) refreshWorkersMiniBtn.addEventListener('click', loadMiniWorkers);
 
   const refreshEcosystemBtn = document.getElementById('refreshEcosystemBtn');
   if (refreshEcosystemBtn) refreshEcosystemBtn.addEventListener('click', loadEcosystem);
@@ -295,4 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  // Initial load
+  loadMiniWorkers();
 });

@@ -1,17 +1,19 @@
 // src/cli/agents.js
 /**
- * CLI commands for managing worker adapters.
+ * CLI commands for managing worker adapters and employee models.
  *
  * Commands:
- *   open-spider agents list            – Detect available workers and show health status.
- *   open-spider agents connect         – Run detect on all adapters and record health.
- *   open-spider agents test <worker>   – Run a task through the adapter to verify.
- *   open-spider agents enable <worker>  – Mark worker as healthy in health store.
- *   open-spider agents disable <worker> – Mark worker as unavailable.
- *   open-spider agents integrate       – Show integration config snippet for other agent CLIs.
+ *   open-spider agents list                  – Detect available workers, models, and live status.
+ *   open-spider agents connect               – Run detect on all adapters and record health.
+ *   open-spider agents model <worker> <model>– Set default model for a specific worker.
+ *   open-spider agents test <worker>         – Run a test probe through the adapter.
+ *   open-spider agents enable <worker>        – Mark worker as enabled and healthy.
+ *   open-spider agents disable <worker>       – Mark worker as disabled.
+ *   open-spider agents integrate             – Show integration config snippet for other agent CLIs.
  */
 import { logger } from "../core/logger.js";
-import { getHealthReport, recordSuccess, recordFailure, isWorkerAvailable } from "../agents/health.js";
+import { getWorkersStatus, recordSuccess, recordFailure } from "../agents/health.js";
+import { loadConfig, setConfigValue } from "../core/config.js";
 import { CodexAdapter } from "../agents/codex.js";
 import { OpencodeAdapter } from "../agents/opencode.js";
 import { HermesAdapter } from "../agents/hermes.js";
@@ -42,25 +44,50 @@ async function detectAll() {
   return results;
 }
 
-export async function handleAgentsCommand(action = 'list', target = null) {
+export async function handleAgentsCommand(action = 'list', target = null, extra = null) {
   switch (action) {
     case 'list': {
       const detection = await detectAll();
-      const health = await getHealthReport();
-      const headers = ['Worker', 'Detected', 'Version', 'Health'];
+      const workers = await getWorkersStatus(detection);
+      const headers = ['Worker Agent', 'Role', 'Status', 'Model', 'Detected'];
       const rows = [];
-      for (const [id, info] of Object.entries(detection)) {
-        const healthRec = health[id] || { status: 'healthy' };
+      for (const w of workers) {
+        let statusDisplay = theme.okText('idle (free)');
+        if (w.status === 'working') {
+          statusDisplay = theme.cyan('● working');
+        } else if (w.status === 'disabled') {
+          statusDisplay = theme.dim('disabled');
+        } else if (w.status === 'limited') {
+          statusDisplay = theme.warnText('limited');
+        } else if (w.status !== 'idle') {
+          statusDisplay = theme.warnText(w.status);
+        }
+
         rows.push([
-          theme.cyan(id),
-          info.detected ? theme.okText('yes') : theme.dim('no'),
-          info.version || 'N/A',
-          healthRec.status === 'healthy' ? theme.okText(healthRec.status) : theme.warnText(healthRec.status)
+          theme.cyan(w.id),
+          theme.dim(w.role || 'Agent'),
+          statusDisplay,
+          w.model ? theme.highlight(w.model) : theme.dim('default'),
+          w.detected ? theme.okText(`yes (${w.version})`) : theme.dim('no')
         ]);
       }
-      console.log(theme.matrix('\n=== OPEN-SPIDER WORKER AGENTS ===\n'));
+      console.log(theme.matrix('\n=== OPEN-SPIDER EMPLOYEE FLEET ===\n'));
       console.log(renderTable(headers, rows));
-      console.log('');
+      console.log(theme.dim('\nSet worker model: open-spider agents model <worker> <modelId>\n'));
+      break;
+    }
+
+    case 'model': {
+      if (!target || !extra) {
+        logger.error('Usage: open-spider agents model <worker> <modelId>');
+        return;
+      }
+      if (!adapters[target]) {
+        logger.fail(`Unknown worker "${target}". Available: ${Object.keys(adapters).join(', ')}`);
+        return;
+      }
+      setConfigValue(`workers.${target}.model`, extra);
+      logger.ok(`Assigned model ${theme.highlight(extra)} to worker agent ${theme.cyan(target)}`);
       break;
     }
 
@@ -69,7 +96,8 @@ export async function handleAgentsCommand(action = 'list', target = null) {
       for (const [id, info] of Object.entries(detection)) {
         if (info.detected) {
           await recordSuccess(id);
-          logger.ok(`Worker ${theme.highlight(id)} detected (${info.version}) – marked healthy`);
+          setConfigValue(`workers.${id}.enabled`, true);
+          logger.ok(`Worker ${theme.highlight(id)} detected (${info.version}) – connected & healthy`);
         } else {
           await recordFailure(id, null);
           logger.warn(`Worker ${theme.highlight(id)} not detected on system PATH`);
@@ -92,7 +120,7 @@ export async function handleAgentsCommand(action = 'list', target = null) {
       const { tmpdir } = await import('node:os');
       const { join } = await import('node:path');
       const tmpPath = join(tmpdir(), `open-spider-${Date.now()}-test.txt`);
-      await fs.writeFile(tmpPath, 'Echo test', { mode: 0o600 });
+      await fs.writeFile(tmpPath, 'Echo test probe', { mode: 0o600 });
       const task = { id: 'test-1', title: 'Test probe', promptFile: tmpPath };
       const adapter = new Adapter();
       logger.info(`Testing worker adapter: ${target}...`);
@@ -112,8 +140,9 @@ export async function handleAgentsCommand(action = 'list', target = null) {
         logger.error('Usage: open-spider agents enable <worker>');
         return;
       }
+      setConfigValue(`workers.${target}.enabled`, true);
       await recordSuccess(target);
-      logger.ok(`Worker ${theme.highlight(target)} enabled and marked healthy`);
+      logger.ok(`Worker ${theme.highlight(target)} enabled`);
       break;
     }
 
@@ -122,8 +151,9 @@ export async function handleAgentsCommand(action = 'list', target = null) {
         logger.error('Usage: open-spider agents disable <worker>');
         return;
       }
+      setConfigValue(`workers.${target}.enabled`, false);
       await recordFailure(target, new Error('manually disabled'));
-      logger.warn(`Worker ${theme.highlight(target)} marked unavailable`);
+      logger.warn(`Worker ${theme.highlight(target)} disabled`);
       break;
     }
 
@@ -146,6 +176,6 @@ export async function handleAgentsCommand(action = 'list', target = null) {
     }
 
     default:
-      logger.warn(`Unknown agents action "${action}". Available: list, connect, test, enable, disable, integrate`);
+      logger.warn(`Unknown agents action "${action}". Available: list, model, connect, test, enable, disable, integrate`);
   }
 }

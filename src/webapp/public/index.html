@@ -3,27 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Open-Spider | Terminal Manager AI Agent</title>
+  <title>Open-Spider | Autonomous Multi-Agent Company Orchestrator</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="app-layout">
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-logo">🕷️</div>
+        <img src="logo.svg" alt="Open-Spider" class="brand-img" />
         <div class="brand-info">
           <h2>Open-Spider</h2>
-          <span class="badge matrix">v0.1.0 • Core</span>
+          <span class="badge matrix">v0.1.0 • Agent Fleet</span>
         </div>
       </div>
 
       <nav class="nav-menu">
         <button class="nav-btn active" data-tab="dashboard">
           <span class="nav-icon">⚡</span> Dashboard & Run
+        </button>
+        <button class="nav-btn" data-tab="fleet">
+          <span class="nav-icon">🏢</span> Agents & Team
+        </button>
+        <button class="nav-btn" data-tab="settings">
+          <span class="nav-icon">⚙️</span> Settings & Models
         </button>
         <button class="nav-btn" data-tab="history">
           <span class="nav-icon">📜</span> Runs History
@@ -32,56 +38,71 @@
           <span class="nav-icon">🧩</span> MCP & Plugins
         </button>
         <button class="nav-btn" data-tab="health">
-          <span class="nav-icon">🩺</span> System Health
+          <span class="nav-icon">🩺</span> System Diagnostics
         </button>
       </nav>
 
       <div class="sidebar-footer">
+        <div class="signature-box">
+          <div class="signature-title">OPEN-SPIDER</div>
+          <div class="signature-desc">Company-Style Multi-Agent AI</div>
+        </div>
         <div class="status-indicator">
           <span class="pulse-dot"></span>
-          <span>Manager Ready</span>
+          <span id="fleetStatusSummary">All Workers Ready</span>
         </div>
       </div>
     </aside>
 
     <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Dashboard View -->
+      <!-- 1. Dashboard View -->
       <section id="tab-dashboard" class="tab-pane active">
         <header class="content-header">
           <div>
-            <h1>Task Orchestration</h1>
-            <p class="subtitle">Manager AI agent orchestrating external coding-agent CLIs as workers.</p>
+            <h1>Autonomous Task Orchestration</h1>
+            <p class="subtitle">Manager AI decomposing goals and coordinating external agent CLIs in parallel like a company.</p>
           </div>
           <div class="header-actions">
             <span id="quick-status" class="status-tag">Ready for tasks</span>
           </div>
         </header>
 
+        <!-- Live Worker Activity Banner -->
+        <div class="card glass-card worker-overview-card">
+          <div class="card-header">
+            <h3>🏢 Active Agent Fleet</h3>
+            <button id="refreshWorkersMiniBtn" class="btn small-btn">🔄 Refresh</button>
+          </div>
+          <div id="miniWorkersGrid" class="mini-workers-grid">
+            <div class="placeholder-text">Loading agent fleet status...</div>
+          </div>
+        </div>
+
         <!-- Task Input Box -->
         <div class="card glass-card task-card">
           <form id="taskForm">
             <div class="form-group">
-              <label for="taskInput">Goal or Task Description</label>
-              <textarea id="taskInput" placeholder="e.g. Write a comprehensive README with usage instructions..." rows="3" required></textarea>
+              <label for="taskInput">Company Goal or Task Objective</label>
+              <textarea id="taskInput" placeholder="e.g. Build an API endpoint and create frontend dashboard components..." rows="3" required></textarea>
             </div>
             
             <div class="form-row">
               <div class="form-group select-group">
                 <label for="strategySelect">Routing Strategy</label>
                 <select id="strategySelect">
-                  <option value="free-first" selected>Free-First (Free tier prioritization)</option>
-                  <option value="balanced">Balanced (Distribute load)</option>
-                  <option value="quality">Quality (Highest capability)</option>
+                  <option value="free-first" selected>Free-First (Free tier model priority)</option>
+                  <option value="balanced">Balanced (Distribute across team)</option>
+                  <option value="quality">Quality (Max Capability)</option>
                 </select>
               </div>
 
               <div class="form-group select-group">
-                <label for="workerPin">Worker Pin (Optional)</label>
+                <label for="workerPin">Pin Specific Worker (Optional)</label>
                 <select id="workerPin">
-                  <option value="">Auto-Route by Planner</option>
+                  <option value="">Auto-Collaborate (Company Mode)</option>
                   <option value="codex">Codex CLI</option>
-                  <option value="opencode">OpenCode</option>
+                  <option value="opencode">OpenCode CLI</option>
                   <option value="hermes">Hermes Agent</option>
                   <option value="antigravity">Antigravity CLI</option>
                 </select>
@@ -89,7 +110,7 @@
 
               <div class="form-actions">
                 <button type="submit" id="submitBtn" class="btn primary-btn">
-                  <span class="btn-icon">🚀</span> Dispatch Task
+                  <span class="btn-icon">🚀</span> Dispatch to Team
                 </button>
               </div>
             </div>
@@ -99,46 +120,120 @@
         <!-- Realtime Live Execution Progress -->
         <div id="executionSection" class="execution-section hidden">
           <div class="section-title-row">
-            <h2>Live Execution</h2>
+            <h2>Live Team Execution</h2>
             <span id="execRunId" class="code-pill"></span>
           </div>
 
           <div class="grid-2col">
-            <!-- Plan & Decomposition Card -->
             <div class="card glass-card">
               <div class="card-header">
-                <h3>📋 Task Decomposition Plan</h3>
+                <h3>📋 Collaborative Decomposition Plan</h3>
                 <span id="planSummary" class="badge"></span>
               </div>
               <div id="planContainer" class="plan-list">
-                <div class="placeholder-text">Waiting for planner...</div>
+                <div class="placeholder-text">Decomposing goal across agents...</div>
               </div>
             </div>
 
-            <!-- Summary & Synthesizer Card -->
             <div class="card glass-card">
               <div class="card-header">
-                <h3>📊 Synthesis & Results</h3>
+                <h3>📊 Synthesis & Output</h3>
                 <span id="execStatusBadge" class="badge">Running</span>
               </div>
               <div id="summaryReport" class="report-box">
-                <div class="placeholder-text">Results will appear upon worker completion...</div>
+                <div class="placeholder-text">Shared results will appear here upon completion...</div>
               </div>
             </div>
           </div>
 
-          <!-- Live Log Stream Card -->
           <div class="card glass-card log-card">
             <div class="card-header">
-              <h3>📟 Execution Terminal Log</h3>
+              <h3>📟 Live Execution Stream</h3>
               <button id="clearLogBtn" class="btn small-btn">Clear</button>
             </div>
-            <pre id="logStream" class="log-stream">Initializing execution log...</pre>
+            <pre id="logStream" class="log-stream">Initializing manager stream...</pre>
           </div>
         </div>
       </section>
 
-      <!-- History View -->
+      <!-- 2. Agents Fleet View (Who is Working / Who is Free) -->
+      <section id="tab-fleet" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Agent Team & Live Status</h1>
+            <p class="subtitle">Real-time inspection of active workers, assigned models, and idle status.</p>
+          </div>
+          <button id="refreshFleetBtn" class="btn secondary-btn">🔄 Refresh Fleet</button>
+        </header>
+
+        <div id="fleetCardsContainer" class="fleet-grid">
+          <div class="placeholder-text">Loading agent team...</div>
+        </div>
+      </section>
+
+      <!-- 3. Settings & Model Selection View -->
+      <section id="tab-settings" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Settings & Worker Models</h1>
+            <p class="subtitle">Configure AI models for each agent employee, manager LLM, and execution concurrency.</p>
+          </div>
+          <button id="saveSettingsBtn" class="btn primary-btn">💾 Save Settings</button>
+        </header>
+
+        <form id="settingsForm">
+          <!-- Worker Models Card -->
+          <div class="card glass-card">
+            <div class="card-header">
+              <h3>🤖 Per-Worker Model Configuration</h3>
+              <span class="badge matrix">Customizable</span>
+            </div>
+            <p class="subtitle" style="margin-bottom: 1rem;">Choose which model each employee agent uses for their tasks.</p>
+            <div id="workerSettingsList" class="settings-worker-list">
+              <div class="placeholder-text">Loading worker settings...</div>
+            </div>
+          </div>
+
+          <!-- Manager & Engine Settings -->
+          <div class="grid-2col">
+            <div class="card glass-card">
+              <div class="card-header">
+                <h3>🧠 Manager Brain</h3>
+              </div>
+              <div class="form-group">
+                <label for="cfgManagerProvider">Manager Provider</label>
+                <input type="text" id="cfgManagerProvider" placeholder="openrouter" />
+              </div>
+              <div class="form-group">
+                <label for="cfgManagerModel">Manager Model</label>
+                <input type="text" id="cfgManagerModel" placeholder="google/gemini-2.5-flash" />
+              </div>
+            </div>
+
+            <div class="card glass-card">
+              <div class="card-header">
+                <h3>⚡ Orchestration & Concurrency</h3>
+              </div>
+              <div class="form-group">
+                <label for="cfgConcurrency">Max Concurrent Workers</label>
+                <input type="number" id="cfgConcurrency" min="1" max="4" value="2" />
+              </div>
+              <div class="form-group">
+                <label for="cfgFailover">Failover Mode</label>
+                <select id="cfgFailover">
+                  <option value="auto">Auto (Automatic switch on quota)</option>
+                  <option value="ask">Ask</option>
+                  <option value="off">Off</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div id="settingsToast" class="toast hidden">Settings saved successfully!</div>
+      </section>
+
+      <!-- 4. History View -->
       <section id="tab-history" class="tab-pane">
         <header class="content-header">
           <div>
@@ -168,7 +263,7 @@
         </div>
       </section>
 
-      <!-- Ecosystem View (MCP & Plugins) -->
+      <!-- 5. Ecosystem View -->
       <section id="tab-ecosystem" class="tab-pane">
         <header class="content-header">
           <div>
@@ -199,7 +294,7 @@
         </div>
       </section>
 
-      <!-- System Health View -->
+      <!-- 6. System Health View -->
       <section id="tab-health" class="tab-pane">
         <header class="content-header">
           <div>
@@ -211,7 +306,7 @@
 
         <div class="card glass-card">
           <div class="card-header">
-            <h3>🤖 Worker Adapters Status</h3>
+            <h3>🤖 Worker Adapters Diagnostics</h3>
           </div>
           <div id="workerHealthGrid" class="health-grid">
             <div class="placeholder-text">Loading health report...</div>

@@ -20,25 +20,14 @@
 
 - [x] **Phase 2 — Providers & Models**
   - Status: Completed
-  - Tasks:
-    - [x] `src/data/providers.catalog.js` with master catalog strictly ordered FREE first (OpenRouter, Groq, Cerebras, Google AI Studio, Mistral, NVIDIA NIM, GitHub Models, Ollama) then PAID (OpenAI, DeepSeek, Anthropic, xAI, Together).
-    - [x] `src/providers/llm-client.js` OpenAI-compatible `/chat/completions` with JSON mode, exponential backoff retries, and error mapping (`AuthError`, `QuotaError`, `NetworkError`).
-    - [x] `src/providers/model-list.js` with 24-hour disk cache in `cache/models.json`, `--refresh`, and Free-First model sorting.
-    - [x] `src/providers/providers-store.js` for custom provider persistence in `providers.json`.
-    - [x] `src/cli/providers.js` with `list`, `add`, `remove`, `test`, `use` actions.
-    - [x] `src/cli/models.js` with filtering (`--free`, `--paid`, `--provider`, `--refresh`).
-    - [x] `test/fixtures/fake-provider.mjs` lightweight HTTP mock server.
-    - [x] Updated `src/cli/doctor.js` with manager provider and model diagnostics.
   - Acceptance Checks: Catalog and model listings strictly follow FREE first; keys masked (`sk-…abcd`); 429 exponential backoff retry and persistent quota error handling verified with `fake-provider`; `npm test` passes (22/22 tests green).
-  - Decisions / Notes: Kept all files < 250 lines. Strict Free-First enforcement in all output layers.
-  - Blockers: None.
 
-- [x] **Phase 3 — Worker Adapters** (Done)
-  - Status: Pending
+- [x] **Phase 3 — Worker Adapters**
+  - Status: Completed
   - Acceptance Checks: Fake worker modes classified; `agents list` reports honest status; timeout kills child tree; CLI flags verified via `--help`.
 
-- [x] **Phase 4 — Manager Brain** (Done)
-  - Status: Pending
+- [x] **Phase 4 — Manager Brain**
+  - Status: Completed
   - Acceptance Checks: Multi-task DAG execution; `[FAILOVER]` triggers on quota; manual pinning works; `--dry-run` plans only; logs saved to `runs/<id>/`.
 
 - [x] **Phase 5 — Setup Wizards**
@@ -47,13 +36,24 @@
 
 - [x] **Phase 6 — Web UI & Ecosystem API**
   - Status: Completed
-  - Acceptance Checks: `open-spider serve` runs HTTP/REST backend & SPA UI; exposes `/api/run`, `/api/runs`, `/api/logs`, `/api/mcp`, `/api/plugins`, `/api/health`; frontend provides dark-matrix dashboard, task runner, log viewer, history inspection, and adapter health; `npm test` passes (28/28 tests green).
-
-
+  - Acceptance Checks: `open-spider serve` runs HTTP/REST backend & SPA UI; exposes `/api/run`, `/api/runs`, `/api/logs`, `/api/mcp`, `/api/plugins`, `/api/health`; frontend provides dark-matrix dashboard, task runner, log viewer, history inspection, and adapter health.
 
 - [x] **Phase 7 — Polish & Release**
   - Status: Completed
   - Acceptance Checks: All CLI commands wired (`open-spider`, `run`, `doctor`, `setup`, `agents`, `providers`, `models`, `mcp`, `plugins`, `runs`, `serve`, `mcp-serve`, `config`, `help`); `doctor --deep --json` passes diagnostics cleanly; `npm test` 28/28 green; `npm pack --dry-run` verified; comprehensive README with usage examples & Termux guide completed.
+
+- [x] **Phase 8 — Multi-Agent Company Orchestration, Live Status & Settings UI**
+  - Status: Completed
+  - Tasks:
+    - [x] `src/data/agent-profiles.js` default employee roles, descriptions, tags, and recommended models.
+    - [x] `src/agents/health.js` live worker state tracking (`idle`, `working`, `limited`, `disabled`, `unavailable`) with active task details.
+    - [x] `src/manager/scheduler.js` company pipeline collaboration: parallel DAG stage execution, team context sharing (`sharedContext` injected into dependent prompts), and real-time state transitions.
+    - [x] `src/manager/router.js` per-worker model routing, capability routing, and user assignment overrides.
+    - [x] `src/cli/agents.js` and `bin/open-spider.js` added `open-spider agents model <worker> <modelId>` CLI configuration.
+    - [x] `src/webapp/server.js` added `GET /api/workers`, `GET /api/settings`, and `POST /api/settings` REST API endpoints.
+    - [x] `src/webapp/public/index.html`, `style.css`, `app.js` built modern Agent Fleet & Team dashboard, Settings & Model customization screen, live idle/busy polling, and Open-Spider signature branding with SVG logo.
+    - [x] `test/multi-agent.test.js` & `test/webapp.test.js` verified live status, model customization, settings persistence, and team context passing.
+  - Acceptance Checks: All 34 tests passing (`npm test` 34/34 green); all files < 250 lines; pure ESM; settings round-trip verified.
 
 ---
 
@@ -62,4 +62,3 @@
 - `opencode`: Verified (`1.18.32`)
 - `hermes`: Verified (`Hermes Agent v0.21.0`)
 - `codex`: Verified (`codex-cli 0.156.1`)
-

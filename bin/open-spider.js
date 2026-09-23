@@ -102,11 +102,11 @@ program
   });
 
 program
-  .command('agents [action] [target]')
-  .description('Manage worker agent adapters (list | connect | integrate | enable | disable | test)')
-  .action(async (action = 'list', target = null) => {
+  .command('agents [action] [target] [extra]')
+  .description('Manage worker agent adapters (list | model | connect | integrate | enable | disable | test)')
+  .action(async (action = 'list', target = null, extra = null) => {
     try {
-      await handleAgentsCommand(action, target);
+      await handleAgentsCommand(action, target, extra);
     } catch (err) {
       console.error(formatError(err, program.opts().debug));
       process.exit(1);
