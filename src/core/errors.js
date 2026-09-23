@@ -4,11 +4,6 @@
  */
 
 export class OpenSpiderError extends Error {
-  /**
-   * @param {string} message
-   * @param {string} [hint]
-   * @param {string} [code]
-   */
   constructor(message, hint = '', code = 'ERR_OPEN_SPIDER') {
     super(message);
     this.name = this.constructor.name;
@@ -17,53 +12,18 @@ export class OpenSpiderError extends Error {
   }
 }
 
-export class ConfigError extends OpenSpiderError {
-  constructor(message, hint = 'Run "open-spider setup" or check your config.json file.') {
-    super(message, hint, 'ERR_CONFIG');
-  }
-}
+const makeError = (code, defHint) => class extends OpenSpiderError {
+  constructor(msg, hint = defHint) { super(msg, hint, code); }
+};
 
-export class SecretError extends OpenSpiderError {
-  constructor(message, hint = 'Check secrets.json permissions or configure API keys with "open-spider providers add".') {
-    super(message, hint, 'ERR_SECRET');
-  }
-}
-
-export class AuthError extends OpenSpiderError {
-  constructor(message, hint = 'Verify your API key or authentication tokens with "open-spider providers test".') {
-    super(message, hint, 'ERR_AUTH');
-  }
-}
-
-export class QuotaError extends OpenSpiderError {
-  constructor(message, hint = 'Rate limit or quota reached. Consider adding fallback providers in "open-spider setup".') {
-    super(message, hint, 'ERR_QUOTA');
-  }
-}
-
-export class NetworkError extends OpenSpiderError {
-  constructor(message, hint = 'Check your network connection and API endpoint availability.') {
-    super(message, hint, 'ERR_NETWORK');
-  }
-}
-
-export class WorkerError extends OpenSpiderError {
-  constructor(message, hint = 'Check worker binary availability and permissions with "open-spider doctor".') {
-    super(message, hint, 'ERR_WORKER');
-  }
-}
-
-export class PlannerError extends OpenSpiderError {
-  constructor(message, hint = 'Try rephrasing your task prompt or check manager model configuration.') {
-    super(message, hint, 'ERR_PLANNER');
-  }
-}
-
-export class McpError extends OpenSpiderError {
-  constructor(message, hint = 'Check MCP server logs or test connectivity with "open-spider mcp test <name>".') {
-    super(message, hint, 'ERR_MCP');
-  }
-}
+export const ConfigError = makeError('ERR_CONFIG', 'Run "open-spider setup" or check your config.json file.');
+export const SecretError = makeError('ERR_SECRET', 'Check secrets.json permissions or configure API keys with "open-spider providers add".');
+export const AuthError = makeError('ERR_AUTH', 'Verify your API key or authentication tokens with "open-spider providers test".');
+export const QuotaError = makeError('ERR_QUOTA', 'Rate limit or quota reached. Consider adding fallback providers in "open-spider setup".');
+export const NetworkError = makeError('ERR_NETWORK', 'Check your network connection and API endpoint availability.');
+export const WorkerError = makeError('ERR_WORKER', 'Check worker binary availability and permissions with "open-spider doctor".');
+export const PlannerError = makeError('ERR_PLANNER', 'Try rephrasing your task prompt or check manager model configuration.');
+export const McpError = makeError('ERR_MCP', 'Check MCP server logs or test connectivity with "open-spider mcp test <name>".');
 
 /**
  * Format an error for user display.
