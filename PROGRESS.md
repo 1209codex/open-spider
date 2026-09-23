@@ -44,16 +44,15 @@
 
 - [x] **Phase 8 — Multi-Agent Company Orchestration, Live Status & Settings UI**
   - Status: Completed
+  - Acceptance Checks: Multi-agent parallel execution, context sharing, live busy/idle status, per-worker model customization, settings screen, vector logo, and branding. `npm test` 34/34 green.
+
+- [x] **Phase 9 — Interactive Manager REPL & Slash Command Session**
+  - Status: Completed
   - Tasks:
-    - [x] `src/data/agent-profiles.js` default employee roles, descriptions, tags, and recommended models.
-    - [x] `src/agents/health.js` live worker state tracking (`idle`, `working`, `limited`, `disabled`, `unavailable`) with active task details.
-    - [x] `src/manager/scheduler.js` company pipeline collaboration: parallel DAG stage execution, team context sharing (`sharedContext` injected into dependent prompts), and real-time state transitions.
-    - [x] `src/manager/router.js` per-worker model routing, capability routing, and user assignment overrides.
-    - [x] `src/cli/agents.js` and `bin/open-spider.js` added `open-spider agents model <worker> <modelId>` CLI configuration.
-    - [x] `src/webapp/server.js` added `GET /api/workers`, `GET /api/settings`, and `POST /api/settings` REST API endpoints.
-    - [x] `src/webapp/public/index.html`, `style.css`, `app.js` built modern Agent Fleet & Team dashboard, Settings & Model customization screen, live idle/busy polling, and Open-Spider signature branding with SVG logo.
-    - [x] `test/multi-agent.test.js` & `test/webapp.test.js` verified live status, model customization, settings persistence, and team context passing.
-  - Acceptance Checks: All 34 tests passing (`npm test` 34/34 green); all files < 250 lines; pure ESM; settings round-trip verified.
+    - [x] `src/manager/session.js` interactive readline REPL with live status banner, slash command dispatcher (`/help`, `/plan`, `/workers`, `/use`, `/pin`, `/exclude`, `/enable`, `/disable`, `/model`, `/status`, `/runs`, `/mcp`, `/clear`, `/quit`).
+    - [x] `bin/open-spider.js` wired interactive REPL to default root execution.
+    - [x] `test/session.test.js` verified slash command parsing, pin/exclude state, and manager switching.
+  - Acceptance Checks: `npm test` 40/40 green; all files < 250 lines; pure ESM.
 
 ---
 

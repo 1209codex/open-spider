@@ -21,6 +21,7 @@ export const theme = {
   warnText: (text) => pc.yellow(text),
   errorText: (text) => pc.red(text),
   successText: (text) => pc.green(text),
+  okText: (text) => pc.green(text),
 
   // Status Prefixes
   okPrefix: pc.green(pc.bold('[ OK ]')),

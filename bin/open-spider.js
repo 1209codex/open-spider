@@ -46,11 +46,17 @@ program.hook('preAction', (thisCommand) => {
   }
 });
 
+import { startInteractiveSession } from '../src/manager/session.js';
+
 // Root action / Interactive REPL
 program
-  .action(() => {
-    console.log(renderBanner({ version: pkg.version }));
-    console.log('Run "open-spider help" to see commands, or "open-spider setup" to configure.\n');
+  .action(async () => {
+    if (process.stdout.isTTY && !process.env.CI) {
+      await startInteractiveSession();
+    } else {
+      console.log(renderBanner({ version: pkg.version }));
+      console.log('Run "open-spider help" to see commands, or "open-spider setup" to configure.\n');
+    }
   });
 
 program
