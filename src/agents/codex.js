@@ -6,6 +6,7 @@
 import { BaseAdapter } from "./base-adapter.js";
 import { execa } from "execa";
 import { logger } from "../core/logger.js";
+import { readFileSync } from "node:fs";
 
 export class CodexAdapter extends BaseAdapter {
   static async detect() {
@@ -28,11 +29,14 @@ export class CodexAdapter extends BaseAdapter {
 
   /**
    * Build the command line for a given task.
-   * Simplified: codex run --prompt-file <file> [--model <model>]
+   * Uses `codex exec` which accepts the prompt as a positional argument.
    */
   buildCommand(task, opts) {
-    const args = ["run", "--prompt-file", task.promptFile];
+    const prompt = readFileSync(task.promptFile, "utf8");
+    const args = ["exec"];
     if (task.model) args.push("--model", task.model);
+    // Pass the prompt directly as an argument.
+    args.push(prompt);
     // Pass through any worker‑specific options.
     if (task.options && task.options.codexFlags) {
       args.push(...task.options.codexFlags);

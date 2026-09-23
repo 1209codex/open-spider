@@ -7,13 +7,17 @@
  *   tasks: [{ id, title, instructions, kind, depends_on, write, suggested_worker, why, acceptance }]
  * }
  */
-import { LLMClient } from "../providers/llm-client.js";
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { logger } from "../core/logger.js";
 import { formatError } from "../core/errors.js";
 import { getConfigValue } from "../core/config.js";
 
 // Simple fallback plan when LLM is unavailable or fails.
 function fallbackPlan(taskDescription) {
+  const tmpPath = join(tmpdir(), `open-spider-${Date.now()}-${Math.random().toString(36).substring(2)}.txt`);
+  writeFileSync(tmpPath, taskDescription);
   return {
     summary: `Fallback plan for ${taskDescription}`,
     tasks: [
@@ -27,10 +31,12 @@ function fallbackPlan(taskDescription) {
         suggested_worker: "custom",
         why: "fallback",
         acceptance: ["Task completed"],
+        promptFile: tmpPath,
       },
     ],
   };
 }
+
 
 export async function planTask(taskDescription) {
   const providerId = getConfigValue("manager.provider") || "openrouter";
